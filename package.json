@@ -1,0 +1,24 @@
+{
+  "name": "blog",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^6.4.7"
+  },
+  "devDependencies": {
+    "mdast-util-to-string": "^4.0.0",
+    "reading-time": "^1.5.0"
+  },
+  "comment:overrides": "esbuild pinned to the patched 0.28.1 (vite/astro pin ^0.27, which is still in advisory range 0.17.0-0.28.0). Build-time only; revisit when vite bumps esbuild upstream.",
+  "overrides": {
+    "esbuild": "^0.28.1"
+  }
+}

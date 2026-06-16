@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/url';
+
+// TODO: personalize. CV/socials below are placeholders — point them at the real URLs.
+const CV_URL = '#';
+const SOCIALS = [
+  { label: 'GitHub', url: 'https://github.com/fabiocfabini' },
+  { label: 'LinkedIn', url: 'https://www.linkedin.com/' },
+];
+---
+
+<BaseLayout title="Home">
+  <section class="hero">
+    <h1>Hi, I'm [Your Name] 👋</h1>
+    <p>
+      I write about diving deep into the technologies I'm curious about, and the
+      sports adventures I get up to away from the keyboard. This site is a living
+      notebook — and a hello to anyone visiting from one of my job applications.
+    </p>
+    <div class="links">
+      <a class="button primary" href={href('blog')}>Read the blog →</a>
+      <a class="button" href={CV_URL}>My CV</a>
+      {SOCIALS.map((s) => <a class="button" href={s.url}>{s.label}</a>)}
+    </div>
+  </section>
+</BaseLayout>

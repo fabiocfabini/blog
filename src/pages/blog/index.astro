@@ -1,0 +1,50 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { href } from '../../lib/url';
+
+// Hide drafts in production builds; show them while developing.
+const isVisible = ({ data }: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !data.draft : true;
+
+const posts = (await getCollection('blog', isVisible)).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+
+// Reading time is derived from rendered content (the remark plugin), so we
+// render each post to read its `minutesRead`.
+const items = await Promise.all(
+  posts.map(async (post) => {
+    const { remarkPluginFrontmatter } = await render(post);
+    return { post, minutesRead: remarkPluginFrontmatter.minutesRead as string };
+  })
+);
+
+const dateFmt = (d: Date) =>
+  d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<BaseLayout title="Blog" description="Posts on learning deep-dives and sports adventures.">
+  <h1>Blog</h1>
+
+  {items.length === 0 && <p class="muted">No posts yet — check back soon.</p>}
+
+  <ul class="post-list">
+    {items.map(({ post, minutesRead }) => (
+      <li class="post-card">
+        <h2><a href={href(`blog/${post.id}`)}>{post.data.title}</a></h2>
+        <div class="meta">
+          <time datetime={post.data.date.toISOString()}>{dateFmt(post.data.date)}</time>
+          <span>·</span>
+          <span>{minutesRead}</span>
+        </div>
+        <p>{post.data.description}</p>
+        {post.data.tags.length > 0 && (
+          <ul class="tags">
+            {post.data.tags.map((t) => <li class="tag">{t}</li>)}
+          </ul>
+        )}
+      </li>
+    ))}
+  </ul>
+</BaseLayout>
