@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { Image } from 'astro:assets';
 import { href } from '../../lib/url';
 
 export async function getStaticPaths() {
@@ -11,7 +12,10 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content, remarkPluginFrontmatter } = await render(post);
+const { Content, headings, remarkPluginFrontmatter } = await render(post);
+
+// Build the ToC from the post's h2/h3 (Astro auto-generates the heading ids).
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
 const dateFmt = post.data.date.toLocaleDateString('en-US', {
   year: 'numeric',
@@ -21,19 +25,73 @@ const dateFmt = post.data.date.toLocaleDateString('en-US', {
 ---
 
 <BaseLayout title={post.data.title} description={post.data.description}>
-  <article class="prose">
-    <p class="meta"><a href={href('blog')}>← Blog</a></p>
-    <h1>{post.data.title}</h1>
-    <div class="meta">
-      <time datetime={post.data.date.toISOString()}>{dateFmt}</time>
-      <span>·</span>
-      <span>{remarkPluginFrontmatter.minutesRead}</span>
-    </div>
-    {post.data.tags.length > 0 && (
-      <ul class="tags" style="margin: .75rem 0 1.5rem;">
-        {post.data.tags.map((t) => <li class="tag">{t}</li>)}
-      </ul>
+  <div class="post-layout">
+    {toc.length > 0 && (
+      <details class="toc" open>
+        <summary>On this page</summary>
+        <nav aria-label="Table of contents">
+          <ul>
+            {toc.map((h) => (
+              <li class={`toc-l${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </details>
     )}
-    <Content />
-  </article>
+
+    <article class="prose post-main">
+      <p class="meta"><a href={href('blog')}>← Blog</a></p>
+
+      {post.data.cover ? (
+        <Image
+          class="post-cover"
+          src={post.data.cover}
+          alt={post.data.coverAlt}
+          widths={[640, 960, 1280]}
+          sizes="(max-width: 800px) 100vw, 720px"
+        />
+      ) : (
+        <div class="post-cover post-cover--fallback" aria-hidden="true"></div>
+      )}
+
+      <h1>{post.data.title}</h1>
+      <div class="meta">
+        <time datetime={post.data.date.toISOString()}>{dateFmt}</time>
+        <span>·</span>
+        <span>{remarkPluginFrontmatter.minutesRead}</span>
+      </div>
+      {post.data.tags.length > 0 && (
+        <ul class="tags post-tags">
+          {post.data.tags.map((t) => <li class="tag">{t}</li>)}
+        </ul>
+      )}
+
+      <Content />
+    </article>
+  </div>
 </BaseLayout>
+
+<script>
+  // Scroll-spy: highlight the ToC entry whose section is currently in view.
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.toc a'));
+  if (links.length) {
+    const byId = new Map(
+      links.map((a) => [a.getAttribute('href')!.slice(1), a])
+    );
+    const headings = Array.from(
+      document.querySelectorAll<HTMLElement>('.post-main h2, .post-main h3')
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            links.forEach((l) => l.classList.remove('is-active'));
+            byId.get(e.target.id)?.classList.add('is-active');
+          }
+        }
+      },
+      { rootMargin: '0px 0px -75% 0px', threshold: 0 }
+    );
+    headings.forEach((h) => observer.observe(h));
+  }
+</script>

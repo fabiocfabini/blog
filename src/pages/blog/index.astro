@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { Image } from 'astro:assets';
 import { href } from '../../lib/url';
 
 // Hide drafts in production builds; show them while developing.
@@ -12,13 +13,16 @@ const posts = (await getCollection('blog', isVisible)).sort(
 );
 
 // Reading time is derived from rendered content (the remark plugin), so we
-// render each post to read its `minutesRead`.
+// render each post to read its `minutesRead`, and parse a number for sorting.
 const items = await Promise.all(
   posts.map(async (post) => {
     const { remarkPluginFrontmatter } = await render(post);
-    return { post, minutesRead: remarkPluginFrontmatter.minutesRead as string };
+    const minutesRead = remarkPluginFrontmatter.minutesRead as string;
+    return { post, minutesRead, minutes: parseInt(minutesRead, 10) || 0 };
   })
 );
+
+const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 
 const dateFmt = (d: Date) =>
   d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -29,22 +33,117 @@ const dateFmt = (d: Date) =>
 
   {items.length === 0 && <p class="muted">No posts yet — check back soon.</p>}
 
-  <ul class="post-list">
-    {items.map(({ post, minutesRead }) => (
-      <li class="post-card">
-        <h2><a href={href(`blog/${post.id}`)}>{post.data.title}</a></h2>
-        <div class="meta">
-          <time datetime={post.data.date.toISOString()}>{dateFmt(post.data.date)}</time>
-          <span>·</span>
-          <span>{minutesRead}</span>
-        </div>
-        <p>{post.data.description}</p>
-        {post.data.tags.length > 0 && (
-          <ul class="tags">
-            {post.data.tags.map((t) => <li class="tag">{t}</li>)}
-          </ul>
+  {items.length > 0 && (
+    <div class="blog-controls">
+      <input
+        type="search"
+        id="post-search"
+        class="search-input"
+        placeholder="Search posts…"
+        aria-label="Search posts by title"
+      />
+      <div class="control-row">
+        {allTags.length > 0 && (
+          <div class="tag-filter" role="group" aria-label="Filter by tag">
+            <button class="chip is-active" data-tag="">All</button>
+            {allTags.map((t) => <button class="chip" data-tag={t}>{t}</button>)}
+          </div>
         )}
+        <label class="sort-control">
+          <span>Sort</span>
+          <select id="post-sort">
+            <option value="date-desc">Newest</option>
+            <option value="date-asc">Oldest</option>
+            <option value="read-asc">Shortest read</option>
+            <option value="read-desc">Longest read</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  )}
+
+  <p class="muted no-results" hidden>No posts match your filters.</p>
+
+  <ul class="post-list" id="post-list">
+    {items.map(({ post, minutesRead, minutes }) => (
+      <li
+        class="post-card"
+        data-title={post.data.title.toLowerCase()}
+        data-tags={post.data.tags.join(',')}
+        data-minutes={minutes}
+        data-date={post.data.date.toISOString()}
+      >
+        <a class="card-thumb" href={href(`blog/${post.id}`)} tabindex="-1" aria-hidden="true">
+          {post.data.cover ? (
+            <Image src={post.data.cover} alt="" widths={[320, 640]} sizes="(max-width: 640px) 100vw, 220px" />
+          ) : (
+            <span class="thumb-fallback"></span>
+          )}
+        </a>
+        <div class="card-body">
+          <h2><a href={href(`blog/${post.id}`)}>{post.data.title}</a></h2>
+          <div class="meta">
+            <time datetime={post.data.date.toISOString()}>{dateFmt(post.data.date)}</time>
+            <span>·</span>
+            <span>{minutesRead}</span>
+          </div>
+          <p>{post.data.description}</p>
+          {post.data.tags.length > 0 && (
+            <ul class="tags">{post.data.tags.map((t) => <li class="tag">{t}</li>)}</ul>
+          )}
+        </div>
       </li>
     ))}
   </ul>
 </BaseLayout>
+
+<script>
+  // Client-side search / tag filter / sort. Degrades to the full list with JS off.
+  const list = document.getElementById('post-list');
+  if (list) {
+    const cards = Array.from(list.querySelectorAll<HTMLElement>('.post-card'));
+    const search = document.getElementById('post-search') as HTMLInputElement | null;
+    const sort = document.getElementById('post-sort') as HTMLSelectElement | null;
+    const chips = Array.from(document.querySelectorAll<HTMLElement>('.tag-filter .chip'));
+    const noResults = document.querySelector<HTMLElement>('.no-results');
+    let activeTag = '';
+
+    const time = (c: HTMLElement) => new Date(c.dataset.date || '').getTime();
+
+    function apply() {
+      const q = (search?.value || '').trim().toLowerCase();
+      const visible = cards.filter((c) => {
+        const matchesText = !q || (c.dataset.title || '').includes(q);
+        const tags = c.dataset.tags ? c.dataset.tags.split(',') : [];
+        const matchesTag = !activeTag || tags.includes(activeTag);
+        return matchesText && matchesTag;
+      });
+
+      const mode = sort?.value || 'date-desc';
+      visible.sort((a, b) => {
+        if (mode === 'date-asc') return time(a) - time(b);
+        if (mode === 'date-desc') return time(b) - time(a);
+        const am = Number(a.dataset.minutes), bm = Number(b.dataset.minutes);
+        return mode === 'read-asc' ? am - bm : bm - am;
+      });
+
+      cards.forEach((c) => (c.hidden = true));
+      visible.forEach((c) => {
+        c.hidden = false;
+        list!.appendChild(c);
+      });
+      if (noResults) noResults.hidden = visible.length !== 0;
+    }
+
+    search?.addEventListener('input', apply);
+    sort?.addEventListener('change', apply);
+    chips.forEach((chip) =>
+      chip.addEventListener('click', () => {
+        activeTag = chip.dataset.tag || '';
+        chips.forEach((c) => c.classList.toggle('is-active', c === chip));
+        apply();
+      })
+    );
+    apply();
+  }
+</script>
