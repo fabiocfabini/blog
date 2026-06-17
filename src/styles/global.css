@@ -132,6 +132,10 @@ main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
   background: var(--surface); border: 1px solid var(--hairline);
   padding: .1em .35em; border-radius: 6px;
 }
+/* Shiki dual-theme: keep our warm --surface bg (.prose pre), pick token colors per theme */
+.prose .astro-code, .prose .astro-code span { color: var(--shiki-light); }
+:root[data-theme="dark"] .prose .astro-code,
+:root[data-theme="dark"] .prose .astro-code span { color: var(--shiki-dark); }
 .prose video, .prose iframe { max-width: 100%; border-radius: var(--radius); }
 
 /* Shared bits */

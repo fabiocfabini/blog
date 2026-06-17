@@ -14,5 +14,11 @@ export default defineConfig({
     // Derives reading time from rendered content; exposed as
     // `remarkPluginFrontmatter.minutesRead` after render(entry).
     remarkPlugins: [remarkReadingTime],
+    // Dual code themes; defaultColor:false means we pick the theme in CSS via
+    // [data-theme] (see global.css). Backgrounds stay on our --surface token.
+    shikiConfig: {
+      themes: { light: 'github-light', dark: 'github-dark' },
+      defaultColor: false,
+    },
   },
 });
