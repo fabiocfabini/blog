@@ -11,6 +11,7 @@ Only the tools listed here exist today. New ones can be created (see "Gaps" belo
 | Research a fact / library / best practice | **deep-research** skill | e.g. Astro patterns, GH Pages specifics, a11y. |
 | Initialize/refresh codebase docs | **init** skill | Once the repo has real structure worth documenting. |
 | Configure the harness (hooks, permissions, env) | **update-config** skill | e.g. allow `npm run dev`/`build` without prompts. |
+| Design / visually polish a page ("make it look nice") | **design-pass** skill | Warm Editorial language + build→screenshot→critique loop. Covers home, blog index, post page. |
 | See a change running / screenshot it | **run** skill | Launches the Astro dev server / built site. |
 | Confirm a change does what was asked | **verify** skill | Behavioral check, not just "it renders." |
 | Bug-hunt the current diff | **code-review** skill | Effort low→ultra; `--fix` applies, `--comment` for PRs. |
@@ -28,7 +29,6 @@ skill list and gets a row above — that is how task→skill coverage grows over
 | Gap | Inline approach today | Candidate custom skill (BOOTSTRAP) |
 |---|---|---|
 | **Writing / reviewing post prose** | Draft or critique directly in chat; use **deep-research** for facts. The voice stays the owner's. | `writing-review` |
-| **UI / visual design** ("make it look nice") | Build Astro components + CSS directly, then **run** to screenshot and iterate visually. | `design-pass` |
 | **Deploy to GitHub Pages** | Author the Actions workflow inline; **run**/**verify** the build; **update-config** for new command permissions. | (usually a one-off; skip) |
 
 Rule: don't fake a skill that doesn't exist. Either use a real one from the table, do
