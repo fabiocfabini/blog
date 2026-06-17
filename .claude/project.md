@@ -16,8 +16,10 @@ Recruiters/hiring managers, plus peers who share the owner's interests.
 3. **Post page** — renders the post's text, images, and video.
 
 ## Content model
-- A post is a single content file with front matter:
-  `title`, `date`, `description`, `tags`/`topics` (keywords), optional `draft`.
+- A post is a single content file — or a per-post `<slug>/index.md` folder when it
+  carries images — with front matter:
+  `title`, `date`, `description`, `tags`/`topics` (keywords), optional `draft`,
+  optional `cover` (+ `coverAlt`).
 - **Reading time is derived** from content (not authored by hand).
 - Posts support text, images, and embedded/hosted video.
 

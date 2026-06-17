@@ -153,9 +153,9 @@ afterthought, so it's specified here and applied on every page.
 - Every post needs a contextual image, so the content-collection schema gains a
   `cover` field (image + alt). The hero (post) and thumbnail (index) both read it.
 - Reading time stays **derived**, never hand-authored (see stack.md).
-- **Preserve the core contract:** a new post is still ONE content file. All design
-  lives in layouts/components/CSS — never require editing per-post files beyond
-  front matter.
+- **Preserve the core contract:** a new post is still ONE unit — a flat `<slug>.md`
+  file or a `<slug>/index.md` folder (with its images). All design lives in
+  layouts/components/CSS — never require editing per-post files beyond front matter.
 
 ## QA checklist (the page must pass before you call it done)
 - [ ] Contrast meets WCAG AA in BOTH themes (ink/muted/accent on bg).

@@ -2,16 +2,18 @@
 
 ## Decisions
 - **Generator: Astro.** Chosen for full control over markup/rendering with no theme
-  lock-in, while content collections keep "one Markdown/MDX file = one post." Owner
+  lock-in, while content collections keep "one Markdown file (or folder) = one post." Owner
   writes their own components/layouts/CSS. Interactive JS "islands" can be added later
   only where wanted.
 - **Deploy: GitHub Pages**, built and published via a GitHub Actions workflow.
   Custom domain supported later.
 
 ## The core contract
-**Adding a blog post = creating ONE new content file** (e.g. `src/content/blog/<slug>.md`)
-that matches the post template/schema. No other files should need editing for a normal
-new post. Any `TASK:` session must preserve this property.
+**Adding a blog post = creating ONE new unit** — either a flat file
+`src/content/blog/<slug>.md` or a co-located folder `src/content/blog/<slug>/index.md`
+(which keeps the post's images beside it). It must match the post template/schema, and
+no other files should need editing for a normal new post. Any `TASK:` session must
+preserve this property.
 
 ## Implementation notes for the first scaffolding TASK
 - Use Astro **content collections** with a typed schema for the front matter in
