@@ -62,7 +62,7 @@ const dateFmt = (d: Date) =>
     </div>
   )}
 
-  <p class="muted no-results" hidden>No posts match your filters.</p>
+  {items.length > 0 && <p class="muted no-results" hidden>No posts match your filters.</p>}
 
   <ul class="post-list" id="post-list">
     {items.map(({ post, minutesRead, minutes }) => (
