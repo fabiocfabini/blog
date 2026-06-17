@@ -14,6 +14,9 @@ interface Props {
 const { title, description = 'Learning deep-dives and sports adventures.', variant = 'default' } = Astro.props;
 
 const SITE_TITLE = 'Fábio Carneiro';
+// The site root passes title === SITE_TITLE (tab reads as just the name);
+// every other page gets "<page> · <name>".
+const docTitle = title === SITE_TITLE ? title : `${title} · ${SITE_TITLE}`;
 const year = new Date().getFullYear();
 
 // Footer socials — extensible: add a line here to grow the list.
@@ -38,9 +41,9 @@ const SOCIALS = [
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href={href('favicon.svg')} />
-    <title>{title}</title>
+    <title>{docTitle}</title>
     <meta name="description" content={description} />
-    <meta property="og:title" content={title} />
+    <meta property="og:title" content={docTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
   </head>

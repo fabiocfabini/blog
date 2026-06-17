@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/url';
+---
+
+<BaseLayout title="Page not found" variant="home">
+  <section class="hero">
+    <p class="eyebrow">404</p>
+    <h1>This page wandered off.</h1>
+    <p class="hero-lead">
+      The page you're looking for doesn't exist or has moved. Let's get you back on
+      a real trail.
+    </p>
+    <div class="links">
+      <a class="button primary" href={href('')}>← Home</a>
+      <a class="button" href={href('blog')}>Read the blog</a>
+    </div>
+  </section>
+</BaseLayout>
