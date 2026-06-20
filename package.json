@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "test": "vitest run",
     "astro": "astro"
   },
   "dependencies": {
@@ -18,7 +19,8 @@
   "devDependencies": {
     "mdast-util-to-string": "^4.0.0",
     "playwright": "^1.61.0",
-    "reading-time": "^1.5.0"
+    "reading-time": "^1.5.0",
+    "vitest": "^4.1.9"
   },
   "comment:overrides": "esbuild pinned to the patched 0.28.1 (vite/astro pin ^0.27, which is still in advisory range 0.17.0-0.28.0). Build-time only; revisit when vite bumps esbuild upstream.",
   "overrides": {
