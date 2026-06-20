@@ -1,0 +1,276 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/url';
+
+const GITHUB = 'https://github.com/fabiocfabini';
+
+// Work history, newest first. Each entry renders as one timeline node.
+const EXPERIENCE = [
+  {
+    role: 'Software Engineer',
+    org: 'CERN — CMS BRIL Group',
+    when: 'Apr 2025 – Present',
+    where: 'Geneva, Switzerland',
+    flag: '🇨🇭',
+    points: [
+      'Built C++17 real-time data-acquisition applications driving FPGA readout hardware through a finite-state machine exposed over REST, with a Python GUI and command-line client to operate it — deployed and run on hardware during the BRIL testbeam campaign.',
+      'Built a FastAPI + Pydantic microservice distributing validated Avro message schemas across all BRIL online services, with strict type checking and a request-introspection facility for end-to-end test traceability.',
+      'Created a container-based (docker-compose) integration-test framework validating end-to-end MQTT messaging and binary-codec correctness across the C++ and Python components.',
+      'Owned CI/CD and containerisation: multi-stage, multi-architecture (x86-64 / arm64) image builds in GitLab CI, and infrastructure-as-code provisioning a Kubernetes cluster on CERN’s OpenStack cloud with Terraform + Ansible.',
+      'Led integration discussions across CMS subsystems, negotiated DAQ interfaces with the central DAQ team, and contributed an accepted upstream fix to Apache Avro.',
+    ],
+  },
+  {
+    role: 'Data-Analysis Software Developer',
+    org: 'CERN — CMS BRIL Group',
+    when: 'Oct 2024 – Mar 2025',
+    where: 'Geneva, Switzerland',
+    flag: '🇨🇭',
+    points: [
+      'Designed and built a modular, configuration-driven analysis-pipeline framework in Python (typed, auto-registering components; declarative YAML pipelines; a column-oriented data model) that standardised and replaced the team’s ad-hoc analysis scripts, with a full quality toolchain (pytest, static typing, linting, pre-commit, CI).',
+      'Ran a systematic study of the team’s long-standing IO bottleneck, showing a columnar layout delivers ~2 orders of magnitude higher read throughput and 2–4× compression, and produced a clear, cost-aware recommendation for the Phase-2 data pipeline.',
+    ],
+  },
+  {
+    role: 'Technical Intern (Software)',
+    org: 'CERN — CMS BRIL Group',
+    when: 'Sep 2023 – Aug 2024',
+    where: 'Geneva, Switzerland',
+    flag: '🇨🇭',
+    points: [
+      'Maintained and extended a critical Python/C++ analysis framework, implementing new features and synchronising development across framework branches.',
+      'Built a vectorised computation layer in C and Cython to speed up the hot paths.',
+    ],
+  },
+  {
+    role: 'Research & Internship',
+    org: 'University of Minho',
+    when: '2022 – 2023',
+    where: 'Braga, Portugal',
+    flag: '🇵🇹',
+    points: [
+      'Summer intern, Instrumentation & Experimental Particle Physics Lab: ML anomaly detection on CMS simulated collision data (PyTorch / Lightning / TensorFlow, Optuna-tuned variational autoencoders).',
+      'Research student (BI grant): parallelised an HPC codebase for the optical properties of 2D materials (NumPy, Dask, h5py), published as an open-source Python package.',
+    ],
+  },
+];
+
+// Skill chips, grouped. Mirrors the CV's three buckets.
+const SKILLS = [
+  { label: 'Languages', items: ['Python', 'C', 'C++'] },
+  { label: 'Python & data', items: ['pytest', 'NumPy', 'pandas', 'PyTorch', 'Matplotlib', 'FastAPI', 'Tkinter'] },
+  { label: 'Tooling & infrastructure', items: ['Linux', 'Git', 'Docker', 'Kubernetes', 'GitLab CI', 'Terraform', 'Ansible', 'MQTT'] },
+];
+
+// Side projects worth a look, each linking to its GitHub repo.
+const PROJECTS = [
+  { name: 'Ruja', url: 'https://github.com/fabiocfabini/Ruja', blurb: 'A programming language built from scratch in C — hand-written lexer, Pratt parser, AST, bytecode compiler, and a stack-based VM with NaN-boxing.', tech: ['C', 'compilers'] },
+  { name: 'Tox', url: 'https://github.com/fabiocfabini/tox', blurb: 'A C-like language built with flex/yacc plus a bytecode virtual machine.', tech: ['Python', 'flex/yacc'] },
+  { name: 'SimpleWire', url: 'https://github.com/fabiocfabini/simplewire', blurb: 'A tiny schema compiler for C that generates single-header binary-serialisation libraries — a lightweight Protocol Buffers alternative.', tech: ['C', 'compilers', 'codegen'] },
+  { name: 'Anchor', url: 'https://github.com/fabiocfabini/anchor', blurb: 'A minimal (~90-line) container runtime in C that demonstrates containers at the kernel level using Linux namespaces (UTS, PID, mount, network).', tech: ['C', 'Linux'] },
+  { name: 'Microcontroller + GUI', url: 'https://github.com/fabiocfabini/Micro-Breakout.X', blurb: 'A GUI-driven application over an IEEE 1451 STIM–NCAP interface on a PIC18F47Q10 — C firmware with a Python NCAP and GUI.', tech: ['C', 'Python', 'embedded'] },
+];
+
+// Publications, newest first. Berry has a public page; the dissertation does not.
+const PUBLICATIONS = [
+  {
+    year: '2024',
+    kind: 'MSc thesis',
+    venue: 'University of Minho',
+    title: 'Luminosity calibrations at the CERN Compact Muon Solenoid experiment',
+    note: 'Precise luminosity measurements are essential for determining particle-interaction cross-sections and testing the Standard Model. This thesis calibrates the luminosity of CERN’s CMS experiment for the 2023 proton–proton run at 13.6 TeV, using the van der Meer scan method to set an absolute luminosity scale — measuring an integrated luminosity of 32.74 fb⁻¹ with 1.28% total uncertainty, the best preliminary result achieved by CMS.',
+    url: 'https://hdl.handle.net/1822/99188',
+  },
+  {
+    year: '2020',
+    kind: 'Software paper',
+    title: 'Berry: a code for the differentiation of Bloch wavefunctions from DFT calculations',
+    note: 'Orders DFT eigenstates into analytic bands so wavefunctions can be differentiated in reciprocal space — computing Berry connections, curvatures, and second-harmonic conductivity for 2D materials.',
+    url: 'https://ricardoribeiro-2020.github.io/berry/',
+  },
+];
+
+const description =
+  'Fábio Carneiro — software engineer at CERN (CMS BRIL). Experience, education, projects, and publications.';
+---
+
+<BaseLayout title="CV" description={description}>
+  {/* Set the reveal flag before the sections below are painted, so animated
+      sections start hidden only when motion is allowed AND JS is on — no flash,
+      and full content with JS off or reduced motion. */}
+  <script is:inline>
+    if (window.matchMedia && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('reveal-on');
+    }
+  </script>
+
+  <header class="cv-intro reveal">
+    <p class="cv-eyebrow">Curriculum Vitae</p>
+    <h1>Fábio Carneiro</h1>
+    <p class="cv-role">Software Engineer · CERN — CMS BRIL Group</p>
+    <p class="cv-lead">
+      I'm a software engineer who likes to understand systems all the way down to
+      the metal. For the past couple of years at CERN I've built software for the
+      CMS experiment's luminosity instrumentation — Python services and
+      data-analysis tools alongside the C++ that talks to the detector hardware —
+      growing most from owning projects end to end. My roots are in physics and
+      scientific computing, but the part of the craft I keep coming back to is the
+      low-level side: performance, memory, and the inner workings of compilers and
+      programming languages.
+    </p>
+    <p class="meta cv-locale"><span class="cv-flag">🇵🇹</span> Portuguese · <span class="cv-flag">🇨🇭</span> Based in Geneva, Switzerland · English (C2)</p>
+  </header>
+
+  <section class="cv-section reveal" aria-labelledby="cv-experience">
+    <h2 id="cv-experience">Experience</h2>
+    <ol class="cv-timeline">
+      {EXPERIENCE.map((job) => (
+        <li class="cv-entry reveal">
+          <h3 class="cv-entry__role">{job.role}</h3>
+          <p class="cv-entry__org">{job.org}</p>
+          <p class="meta cv-entry__meta">{job.when} · <span class="cv-flag">{job.flag}</span> {job.where}</p>
+          <ul class="cv-points">
+            {job.points.map((p) => <li>{p}</li>)}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="cv-section reveal" aria-labelledby="cv-education">
+    <h2 id="cv-education">Education</h2>
+    <div class="cv-block">
+      <h3 class="cv-entry__role">MSc, Physics Engineering</h3>
+      <p class="cv-entry__org">University of Minho — Braga, Portugal</p>
+      <p class="meta cv-entry__meta">Master's degree · Thesis carried out at CERN</p>
+      <ul class="cv-points">
+        <li>A full-stack data-analysis background, from high-level scientific Python (NumPy, pandas, scikit-learn, PyTorch) down to low-level, OS-aware optimisation: memory hierarchy, processes, C/C++, and computer architecture.</li>
+        <li>Relevant coursework: compilers &amp; virtual machines, embedded development &amp; instrumentation, computer architecture, and quantum computing.</li>
+        <li>Thesis on luminosity measurement at the CMS experiment, CERN.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cv-section reveal" aria-labelledby="cv-skills">
+    <h2 id="cv-skills">Skills</h2>
+    <div class="cv-skills">
+      {SKILLS.map((group) => (
+        <div class="cv-skill-group">
+          <p class="cv-skill-label">{group.label}</p>
+          <ul class="tags">
+            {group.items.map((item) => <li class="tag">{item}</li>)}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="cv-section reveal" aria-labelledby="cv-projects">
+    <h2 id="cv-projects">Selected projects</h2>
+    <p class="cv-section-lead">
+      Side projects from a long-running fascination with low-level systems,
+      compilers, and how things work underneath.
+    </p>
+    <div class="cv-slider" data-slider>
+      <div class="cv-slider-track" tabindex="0" role="group" aria-label="Projects — scroll for more">
+        {PROJECTS.map((proj) => (
+          <article class="cv-project">
+            <h3><a href={proj.url}>{proj.name}<svg class="ext-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg></a></h3>
+            <p>{proj.blurb}</p>
+            <ul class="tags">
+              {proj.tech.map((t) => <li class="tag">{t}</li>)}
+            </ul>
+          </article>
+        ))}
+        <a class="cv-slider-end" href={GITHUB}>
+          <span>See all my work on GitHub</span>
+          <svg class="ext-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
+        </a>
+      </div>
+      <div class="cv-slider-nav">
+        <button type="button" class="cv-slider-btn" data-dir="-1" aria-label="Previous project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <button type="button" class="cv-slider-btn" data-dir="1" aria-label="Next project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="cv-section reveal" aria-labelledby="cv-publications">
+    <h2 id="cv-publications">Publications</h2>
+    <ul class="cv-pubs">
+      {PUBLICATIONS.map((pub) => (
+        <li class="cv-pub">
+          <p class="meta">{pub.year} · {pub.kind}{pub.venue ? ` · ${pub.venue}` : ''}</p>
+          <h3>
+            {pub.url ? <a href={pub.url}>{pub.title}<svg class="ext-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg></a> : pub.title}
+          </h3>
+          <p class="muted">{pub.note}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="cv-section reveal" aria-labelledby="cv-beyond">
+    <h2 id="cv-beyond">Beyond the code</h2>
+    <p class="cv-beyond-text">
+      Outside work I climb, run, cycle, and swim. I was a national swimming
+      champion — 200 m butterfly, Portuguese Swimming Federation, 2017 — before
+      trading the pool for the mountains, and I still carry that discipline into
+      everything I build. I also solve the Rubik's cube, the same black box that
+      greets you on the <a href={href('')}>home page</a>.
+    </p>
+  </section>
+
+  <script>
+    // One-shot scroll reveal. The `reveal-on` class (set inline above) means the
+    // hidden start-state only exists with JS + motion allowed, so this is purely
+    // additive: no JS / reduced motion => everything is already visible.
+    const items = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      items.forEach((el) => el.classList.add('is-visible'));
+    } else {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-visible');
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.06 },
+      );
+      items.forEach((el) => io.observe(el));
+    }
+
+    // Projects horizontal slider: the left/right buttons scroll the track by one
+    // card and disable themselves at each end. Native scroll/scroll-snap does the
+    // rest, so it still works (just without buttons) if this script never runs.
+    const track = document.querySelector('.cv-slider-track');
+    if (track) {
+      const buttons = document.querySelectorAll('.cv-slider-btn');
+      const step = () => {
+        const card = track.querySelector('.cv-project');
+        const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+        return (card ? card.getBoundingClientRect().width : track.clientWidth * 0.8) + gap;
+      };
+      const EDGE = 4; // px tolerance: scroll-snap can leave scrollLeft a hair off 0
+      const update = () => {
+        const max = track.scrollWidth - track.clientWidth - EDGE;
+        buttons.forEach((b) => {
+          const dir = Number(b.getAttribute('data-dir'));
+          (b as HTMLButtonElement).disabled = dir < 0 ? track.scrollLeft <= EDGE : track.scrollLeft >= max;
+        });
+      };
+      buttons.forEach((b) =>
+        b.addEventListener('click', () =>
+          track.scrollBy({ left: Number(b.getAttribute('data-dir')) * step(), behavior: 'smooth' })),
+      );
+      track.addEventListener('scroll', update, { passive: true });
+      update();
+    }
+  </script>
+</BaseLayout>

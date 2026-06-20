@@ -1,10 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import RubiksCube from '../components/RubiksCube.astro';
+import { href } from '../lib/url';
 
-// TODO: point CV at the real URL. The intro copy lives in the inline script
-// below — the lead line is the only one the cube narrates (keys map to it).
-const CV_URL = '#';
+// The intro copy lives in the inline script below — the lead line is the only one
+// the cube narrates (keys map to it).
+const CV_URL = href('cv');
 const SOCIALS = [
   { label: 'GitHub', url: 'https://github.com/fabiocfabini' },
 ];
