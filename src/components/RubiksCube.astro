@@ -114,15 +114,15 @@
 
   function init(scene: HTMLElement, cubeEl: HTMLElement) {
     const TILT = -26; // fixed downward tilt for a three-quarter view
-    const SPIN_SPEED = 0.028; // deg per ms — a full turn every ~26s
-    const TURN_MS = 260; // one quarter-turn (snappy for click-driven steps)
+    const SPIN_SPEED = 0.014; // deg per ms — a full turn every ~26s
+    const TURN_MS = 160; // one quarter-turn (snappy for click-driven steps)
     const EXPLODE = 1.5; // how far cubies spread when opened
     const OPEN_MS = 800; // spread into the exploded view
     const OPEN_HOLD_MS = 420; // linger, taken apart
     const COLLAPSE_MS = 620; // settle back into a solid cube
     const CLOSE_MS = 750; // drain colour back to black
-    const TREMOR_MS = 1000; // the shudder before it bursts open
-    const TREMOR_AMP = 10; // peak shake (px / deg) before damping
+    const TREMOR_MS = 480; // the shudder before it bursts open
+    const TREMOR_AMP = 9; // peak shake (px / deg) before damping
 
     const reduce = matchMedia('(prefers-reduced-motion: reduce)');
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
