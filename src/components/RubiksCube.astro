@@ -1,0 +1,455 @@
+---
+// "Black Box" — the home hero's narrator, built as an animated 3x3 Rubik's cube.
+//
+// Click-driven: the cube starts as an opaque BLACK BOX (gently tumbling) and
+// waits. An arrow next to the intro advances it. The first click makes it TREMBLE
+// and then burst open — exploded view + colour flooding in. Each further click
+// reconfigures the cube and advances the intro to the next line; the last click
+// closes it back into the black box. As it moves it dispatches `cube:narrate`
+// (which line to show) and `cube:busy` (lock the button mid-animation); the home
+// page owns the copy and the button. See src/pages/index.astro.
+//
+// All cube logic lives in ../lib/cube/engine (pure + unit-tested); this file is
+// the CSS-3D renderer, the animation loop, and the click choreography.
+// Decorative + a motion enhancement, so it is aria-hidden, respects
+// prefers-reduced-motion (static colourful cube, no events → page keeps the full
+// static intro), and pauses when the tab is hidden or scrolled away.
+---
+
+<div class="rk-scene" data-rubiks aria-hidden="true">
+  <div class="rk-cube"></div>
+</div>
+
+<style is:global>
+  .rk-scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 360px;
+    perspective: 900px;
+    pointer-events: none;
+
+    /* Cube palette — tokens so it can be themed/tuned in one place. */
+    --rk-plastic: #17171d;
+    --rk-U: #f1efe8; /* up    — white  */
+    --rk-D: #edc531; /* down  — yellow */
+    --rk-F: #2ca06a; /* front — green  */
+    --rk-B: #2f6fcf; /* back  — blue   */
+    --rk-R: #d63b42; /* right — red    */
+    --rk-L: #e7892b; /* left  — orange */
+  }
+  :root[data-theme='dark'] .rk-scene {
+    --rk-plastic: #101014;
+  }
+
+  /* Soft warm halo so the cube feels grounded, not floating. */
+  .rk-scene::after {
+    content: '';
+    position: absolute;
+    inset: 12% 8%;
+    z-index: -1;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in oklab, var(--accent) 16%, transparent),
+      transparent 70%
+    );
+    filter: blur(24px);
+  }
+
+  .rk-cube {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  .rk-cubie {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--rk-s);
+    height: var(--rk-s);
+    margin-top: calc(var(--rk-s) / -2);
+    margin-left: calc(var(--rk-s) / -2);
+    transform-style: preserve-3d;
+  }
+
+  .rk-face {
+    position: absolute;
+    inset: 0;
+    background: var(--rk-plastic);
+    border-radius: 7px;
+    backface-visibility: hidden;
+  }
+
+  .rk-sticker {
+    position: absolute;
+    inset: 9%;
+    border-radius: 16%;
+    background: var(--c, var(--rk-plastic));
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+    /* The black-box reveal: colour fades in/out, staggered per cubie (--d). */
+    transition: background-color 0.5s ease;
+    transition-delay: var(--d, 0ms);
+  }
+  /* Closed = a black box: every sticker blends into the plastic body. */
+  .rk-scene.is-closed .rk-sticker {
+    background: var(--rk-plastic);
+  }
+
+  /* No room for it next to the text on small screens — drop it entirely. */
+  @media (max-width: 768px) {
+    .rk-scene { display: none; }
+  }
+</style>
+
+<script>
+  import { makeSolved, applyMove, parseMoves, invert, PATTERNS, AXIS_VEC, FACES } from '../lib/cube/engine';
+  import type { Cubie, Move, Mat, Vec } from '../lib/cube/engine';
+
+  const scene = document.querySelector<HTMLElement>('[data-rubiks]');
+  const cubeEl = scene?.querySelector<HTMLElement>('.rk-cube');
+  if (scene && cubeEl) init(scene, cubeEl);
+
+  function init(scene: HTMLElement, cubeEl: HTMLElement) {
+    const TILT = -26; // fixed downward tilt for a three-quarter view
+    const SPIN_SPEED = 0.028; // deg per ms — a full turn every ~26s
+    const TURN_MS = 260; // one quarter-turn (snappy for click-driven steps)
+    const EXPLODE = 1.5; // how far cubies spread when opened
+    const OPEN_MS = 800; // spread into the exploded view
+    const OPEN_HOLD_MS = 420; // linger, taken apart
+    const COLLAPSE_MS = 620; // settle back into a solid cube
+    const CLOSE_MS = 750; // drain colour back to black
+    const TREMOR_MS = 1000; // the shudder before it bursts open
+    const TREMOR_AMP = 10; // peak shake (px / deg) before damping
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+    // Scenes in click order. Facet scenes carry a short pattern to display; the
+    // key tells the page which line of the intro to show.
+    const pat = (name: string) => PATTERNS.find((p) => p.name === name)!.notation;
+    const SCENES = [
+      { key: 'closed', moves: '' },
+      { key: 'open', moves: '' },
+      { key: 'code', moves: pat('Checkerboard') },
+      { key: 'sport', moves: pat('Six spots') },
+      { key: 'oss', moves: pat('Dots') },
+    ];
+
+    // Each cube face div, by the cubie-local direction it covers.
+    const FACE_DIRS: { dir: Vec; t: string }[] = [
+      { dir: [1, 0, 0], t: 'rotateY(90deg)' },
+      { dir: [-1, 0, 0], t: 'rotateY(-90deg)' },
+      { dir: [0, 1, 0], t: 'rotateX(-90deg)' },
+      { dir: [0, -1, 0], t: 'rotateX(90deg)' },
+      { dir: [0, 0, 1], t: '' },
+      { dir: [0, 0, -1], t: 'rotateY(180deg)' },
+    ];
+
+    const cubies = makeSolved();
+    const els = cubies.map((c, i) => buildCubie(c, i));
+    els.forEach((el) => cubeEl.appendChild(el));
+
+    let S = 54;
+    function sizeToContainer() {
+      const w = scene.clientWidth || 320;
+      const h = scene.clientHeight || 320;
+      S = Math.round(Math.max(40, Math.min(64, Math.min(w, h) / 5)));
+      scene.style.setProperty('--rk-s', `${S}px`);
+      renderAll();
+    }
+
+    // --- transforms -------------------------------------------------------
+    // 3x3 orientation -> CSS matrix3d (column-major; no translation).
+    const m3d = (R: Mat) =>
+      `matrix3d(${R[0][0]},${R[1][0]},${R[2][0]},0,${R[0][1]},${R[1][1]},${R[2][1]},0,${R[0][2]},${R[1][2]},${R[2][2]},0,0,0,0,1)`;
+    // `explode` spreads the cubies outward (1 = solid cube) for the open/close gesture.
+    let explode = 1;
+    const baseTransform = (c: Cubie) =>
+      `translate3d(${c.position[0] * S * explode}px,${c.position[1] * S * explode}px,${c.position[2] * S * explode}px) ${m3d(c.orientation)}`;
+    function renderAll() {
+      for (let i = 0; i < cubies.length; i++) els[i].style.transform = baseTransform(cubies[i]);
+    }
+
+    // --- whole-cube spin (+ tremor) --------------------------------------
+    let spin = -30;
+    let shakePrefix = '';
+    const renderCube = () => {
+      cubeEl.style.transform = `${shakePrefix}rotateX(${TILT}deg) rotateY(${spin}deg)`;
+    };
+
+    // --- exploded-view tween ---------------------------------------------
+    let exTween: { from: number; to: number; t0: number; dur: number } | null = null;
+    function tweenExplode(to: number, dur: number, now: number) {
+      exTween = { from: explode, to, t0: now, dur };
+    }
+    function updateExplode(now: number) {
+      if (!exTween) return;
+      const p = Math.min(1, (now - exTween.t0) / exTween.dur);
+      explode = exTween.from + (exTween.to - exTween.from) * easeInOut(p);
+      renderAll();
+      if (p >= 1) exTween = null;
+    }
+
+    // --- one animated layer turn -----------------------------------------
+    type Active = { move: Move; axis: number; angleTo: number; moving: number[]; t0: number; dur: number };
+    let active: Active | null = null;
+    let queue: Move[] = [];
+
+    function startMove(move: Move, now: number) {
+      const f = FACES[move.face];
+      const moving: number[] = [];
+      for (let i = 0; i < cubies.length; i++) if (cubies[i].position[f.axis] === f.layer) moving.push(i);
+      active = {
+        move,
+        axis: f.axis,
+        angleTo: f.sign * 90 * move.amount,
+        moving,
+        t0: now,
+        dur: TURN_MS * (move.amount === 2 ? 1.6 : 1),
+      };
+    }
+    function pumpQueue(now: number) {
+      if (active) return;
+      if (queue.length) startMove(queue.shift()!, now);
+    }
+    function renderActive(now: number) {
+      if (!active) return;
+      const p = Math.min(1, (now - active.t0) / active.dur);
+      const ang = active.angleTo * easeInOut(p);
+      const v = AXIS_VEC[active.axis];
+      const pre = `rotate3d(${v[0]},${v[1]},${v[2]},${ang}deg) `;
+      for (const i of active.moving) els[i].style.transform = pre + baseTransform(cubies[i]);
+      if (p >= 1) {
+        applyMove(cubies, active.move); // bake the exact 90° into the state
+        for (const i of active.moving) els[i].style.transform = baseTransform(cubies[i]);
+        active = null;
+      }
+    }
+
+    // --- page events ------------------------------------------------------
+    const emit = (key: string) =>
+      document.dispatchEvent(new CustomEvent('cube:narrate', { detail: { key } }));
+    const emitBusy = (busy: boolean) =>
+      document.dispatchEvent(new CustomEvent('cube:busy', { detail: { busy } }));
+
+    // --- tremor -----------------------------------------------------------
+    let tremorUntil = 0;
+
+    // --- act sequencer ----------------------------------------------------
+    // A transition is a small list of acts run in order inside the rAF loop.
+    type Act =
+      | { type: 'emit'; key: string }
+      | { type: 'class'; op: 'add' | 'remove'; name: string }
+      | { type: 'tremor'; dur: number }
+      | { type: 'explode'; to: number; dur: number }
+      | { type: 'moves'; list: Move[] }
+      | { type: 'wait'; dur: number };
+
+    let acts: Act[] = [];
+    let actIndex = 0;
+    let actStart = 0;
+    let busy = false;
+
+    function beginAct(now: number) {
+      const a = acts[actIndex];
+      if (!a) {
+        busy = false;
+        emitBusy(false);
+        return;
+      }
+      actStart = now;
+      switch (a.type) {
+        case 'emit': emit(a.key); nextAct(now); break;
+        case 'class': scene.classList[a.op](a.name); nextAct(now); break;
+        case 'tremor': tremorUntil = now + a.dur; break;
+        case 'explode': tweenExplode(a.to, a.dur, now); break;
+        case 'moves': queue.push(...a.list); break;
+        case 'wait': break;
+      }
+    }
+    function nextAct(now: number) {
+      actIndex++;
+      beginAct(now);
+    }
+    function updateActs(now: number) {
+      if (!busy) return;
+      const a = acts[actIndex];
+      if (!a) return;
+      let done = false;
+      switch (a.type) {
+        case 'tremor': done = now >= tremorUntil; break;
+        case 'explode': done = exTween === null; break;
+        case 'moves': done = queue.length === 0 && !active; break;
+        case 'wait': done = now >= actStart + a.dur; break;
+        default: done = true;
+      }
+      if (done) nextAct(now);
+    }
+    function runActs(list: Act[], now: number) {
+      acts = list;
+      actIndex = 0;
+      busy = true;
+      emitBusy(true);
+      beginAct(now);
+    }
+
+    // --- click choreography ----------------------------------------------
+    let sceneIndex = 0; // start closed
+    let currentPattern: Move[] = []; // pattern currently displayed (to undo)
+
+    function transitionTo(next: number, now: number) {
+      const key = SCENES[next].key;
+      if (key === 'open') {
+        // Tremble, then burst into colour and spread apart, then settle.
+        runActs(
+          [
+            { type: 'tremor', dur: TREMOR_MS },
+            { type: 'class', op: 'remove', name: 'is-closed' },
+            { type: 'emit', key: 'open' },
+            { type: 'explode', to: EXPLODE, dur: OPEN_MS },
+            { type: 'wait', dur: OPEN_HOLD_MS },
+            { type: 'explode', to: 1, dur: COLLAPSE_MS },
+          ],
+          now,
+        );
+      } else if (key === 'closed') {
+        // Undo the last pattern, then drain colour back to a black box.
+        const list = invert(currentPattern);
+        currentPattern = [];
+        runActs(
+          [
+            ...(list.length ? [{ type: 'moves', list } as Act] : []),
+            { type: 'emit', key: 'closed' },
+            { type: 'class', op: 'add', name: 'is-closed' },
+            { type: 'wait', dur: CLOSE_MS },
+          ],
+          now,
+        );
+      } else {
+        // A facet: reconfigure from the current pattern into this one.
+        const moves = parseMoves(SCENES[next].moves);
+        const list = invert(currentPattern).concat(moves);
+        currentPattern = moves;
+        runActs(
+          [{ type: 'emit', key }, ...(list.length ? [{ type: 'moves', list } as Act] : [])],
+          now,
+        );
+      }
+      sceneIndex = next;
+    }
+
+    function advance() {
+      if (busy || !shouldRun()) return;
+      transitionTo((sceneIndex + 1) % SCENES.length, performance.now());
+    }
+    document.addEventListener('cube:advance', advance);
+
+    // --- rAF loop with pause guards --------------------------------------
+    let raf = 0;
+    let last = 0;
+    let docVisible = !document.hidden;
+    let onScreen = true;
+    let bootstrapped = false;
+
+    function frame(now: number) {
+      raf = requestAnimationFrame(frame);
+      if (!bootstrapped) {
+        bootstrapped = true;
+        emit('closed'); // sync the black-box line + reveal the button
+        emitBusy(false);
+      }
+      const dt = Math.min(50, now - last);
+      last = now;
+      spin = (spin + SPIN_SPEED * dt) % 360;
+      if (now < tremorUntil) {
+        const damp = (tremorUntil - now) / TREMOR_MS;
+        const a = TREMOR_AMP * damp;
+        const s = Math.sin(now * 0.055);
+        const c = Math.cos(now * 0.072);
+        shakePrefix = `translate3d(${(s * a).toFixed(2)}px,${(c * a * 0.7).toFixed(2)}px,0) rotateZ(${(s * a * 0.5).toFixed(2)}deg) `;
+      } else {
+        shakePrefix = '';
+      }
+      renderCube();
+      updateExplode(now);
+      pumpQueue(now);
+      renderActive(now);
+      updateActs(now);
+    }
+
+    const shouldRun = () => docVisible && onScreen && !reduce.matches;
+    function sync() {
+      if (shouldRun()) {
+        if (!raf) {
+          last = performance.now();
+          raf = requestAnimationFrame(frame);
+        }
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    }
+
+    // Reduced motion: a calm, colourful, fully-assembled cube; no loop, no events.
+    function staticPose() {
+      scene.classList.remove('is-closed');
+      explode = 1;
+      spin = -32;
+      renderAll();
+      renderCube();
+    }
+
+    function buildCubie(c: Cubie, i: number) {
+      const el = document.createElement('div');
+      el.className = 'rk-cubie';
+      el.style.setProperty('--d', `${i * 10}ms`); // gentle reveal cascade
+      for (const fd of FACE_DIRS) {
+        const face = document.createElement('div');
+        face.className = 'rk-face';
+        face.style.transform = `${fd.t} translateZ(calc(var(--rk-s) / 2))`;
+        const sticker = c.stickers.find(
+          (s) => s.dir[0] === fd.dir[0] && s.dir[1] === fd.dir[1] && s.dir[2] === fd.dir[2],
+        );
+        if (sticker) {
+          const sk = document.createElement('div');
+          sk.className = 'rk-sticker';
+          sk.style.setProperty('--c', `var(--rk-${sticker.color})`);
+          face.appendChild(sk);
+        }
+        el.appendChild(face);
+      }
+      return el;
+    }
+
+    // Initial paint.
+    sizeToContainer();
+    if (reduce.matches) {
+      staticPose();
+    } else {
+      scene.classList.add('is-closed'); // start life as a black box
+      renderCube();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      docVisible = !document.hidden;
+      sync();
+    });
+    reduce.addEventListener?.('change', () => {
+      if (reduce.matches) staticPose();
+      sync();
+    });
+    new IntersectionObserver(
+      (entries) => {
+        onScreen = entries[0].isIntersecting;
+        sync();
+      },
+      { threshold: 0 },
+    ).observe(scene);
+    window.addEventListener('resize', sizeToContainer);
+
+    sync();
+  }
+</script>

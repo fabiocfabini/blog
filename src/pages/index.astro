@@ -1,8 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { href } from '../lib/url';
+import RubiksCube from '../components/RubiksCube.astro';
 
-// TODO: replace the lorem intro with your real one; point CV at the real URL.
+// TODO: point CV at the real URL. The intro copy lives in the inline script
+// below — the lead line is the only one the cube narrates (keys map to it).
 const CV_URL = '#';
 const SOCIALS = [
   { label: 'GitHub', url: 'https://github.com/fabiocfabini' },
@@ -11,17 +12,120 @@ const SOCIALS = [
 
 <BaseLayout title="Fábio Carneiro" variant="home">
   <section class="hero">
-    <p class="eyebrow">Personal blog</p>
-    <h1>Hi, I'm Fábio Carneiro 👋</h1>
-    <p class="hero-lead">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
-      <em>(Placeholder — your real intro goes here.)</em>
-    </p>
-    <div class="links">
-      <a class="button primary" href={href('blog')}>Read the blog →</a>
-      <a class="button" href={CV_URL}>My CV</a>
-      {SOCIALS.map((s) => <a class="button" href={s.url}>{s.label}</a>)}
+    <div class="hero-text">
+      <p class="eyebrow">Personal blog</p>
+      <!-- Explicit break so the name wraps the same with the fallback serif and
+           Source Serif — otherwise "Carneiro" jumps to line 2 when the web font
+           swaps in. This matches how it already renders on desktop. -->
+      <h1>Hi, I'm Fábio<br />Carneiro 👋</h1>
+      <!-- The full intro is the no-JS / screen-reader / reduced-motion fallback.
+           With the cube active, the inline script below collapses it to the first
+           narrated line BEFORE paint (no flash), then steps through it on click. -->
+      <p class="hero-lead">
+        I'm allergic to black boxes — so I take them apart to see how they work. I
+        write deep-dives into the tech I'm learning, chase outdoor adventures, and
+        build in the open on GitHub.
+      </p>
+      <!-- Steps the cube/intro forward. Hidden until the cube is actually on
+           screen (revealed by the script); stays hidden with no JS. -->
+      <button class="cube-advance" type="button" hidden aria-label="Take the box apart">
+        <span class="cube-advance__label">Take it apart</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14" />
+          <path d="m13 6 6 6-6 6" />
+        </svg>
+      </button>
+      <div class="links">
+        <a class="button" href={CV_URL}>My CV</a>
+        {SOCIALS.map((s) => <a class="button" href={s.url}>{s.label}</a>)}
+      </div>
     </div>
+    <RubiksCube />
   </section>
+
+  {/* Runs synchronously, before first paint, so the lead is already collapsed to
+      the first narrated line when the page renders — no flash, no layout shift.
+      Kept is:inline (not a bundled module) precisely so it isn't deferred. */}
+  <script is:inline>
+    (function () {
+      var lead = document.querySelector('.hero-lead');
+      var btn = document.querySelector('.cube-advance');
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+      // The cube and the intro talk over events:
+      //   cube -> page : `cube:narrate` {key}  — which line to show
+      //                  `cube:busy`    {busy} — lock the button mid-animation
+      //   page -> cube : `cube:advance`        — step forward (button click)
+      // Copy lives here so it's edited in one obvious place. The narrator only
+      // engages while the cube is visible and motion is allowed; otherwise the
+      // full static intro above stays put (also what no-JS / SR always get).
+      var COPY = {
+        closed: "I'm allergic to black boxes.",
+        open: 'So I take them apart to see how they work.',
+        code: "I write deep-dives into the tech I'm learning.",
+        sport: 'Then I go chase some outdoor adventures.',
+        oss: "And I build in the open — it's all on GitHub.",
+      };
+      var label = function (key) { return key === 'closed' ? 'Take it apart' : 'Next'; };
+
+      if (!lead || reduce.matches) return;
+      var full = lead.textContent || '';
+      var narrating = false;
+
+      function cubeVisible() {
+        var scene = document.querySelector('.rk-scene');
+        return !!scene && getComputedStyle(scene).display !== 'none';
+      }
+
+      function showLine(key, animate) {
+        var text = COPY[key];
+        if (!text) return;
+        if (btn) {
+          btn.hidden = false;
+          btn.setAttribute('aria-label', key === 'closed' ? 'Take the box apart' : 'Next');
+          btn.classList.toggle('is-inviting', key === 'closed');
+          var l = btn.querySelector('.cube-advance__label');
+          if (l) l.textContent = label(key);
+        }
+        if (!narrating) {
+          narrating = true;
+          lead.classList.add('is-narrating');
+          lead.textContent = text; // first line takes over the full intro
+          return;
+        }
+        if (text === lead.textContent) return;
+        if (!animate) { lead.textContent = text; return; }
+        lead.classList.add('is-fading');
+        window.setTimeout(function () {
+          lead.textContent = text;
+          lead.classList.remove('is-fading');
+        }, 220);
+      }
+
+      function restoreFull() {
+        if (!narrating) return;
+        narrating = false;
+        lead.classList.remove('is-narrating');
+        lead.textContent = full;
+        if (btn) btn.hidden = true;
+      }
+
+      if (btn) btn.addEventListener('click', function () {
+        document.dispatchEvent(new CustomEvent('cube:advance'));
+      });
+      document.addEventListener('cube:busy', function (e) {
+        if (btn) btn.disabled = e.detail.busy;
+      });
+      document.addEventListener('cube:narrate', function (e) {
+        // No cube (e.g. mobile) — keep / restore the full static intro, no button.
+        if (!cubeVisible()) return restoreFull();
+        showLine(e.detail.key, true);
+      });
+
+      // Set the initial line now (pre-paint). The cube always starts 'closed' and
+      // can't be advanced until we reveal the button, so this is always correct
+      // and can't be missed if the cube's module loads/emits before us.
+      if (cubeVisible()) showLine('closed', false);
+    })();
+  </script>
 </BaseLayout>

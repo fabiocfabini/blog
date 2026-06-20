@@ -160,6 +160,16 @@ main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
 .post-card p { margin: var(--s3) 0; color: var(--muted); }
 
 /* Home */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: var(--s7);
+  align-items: center;
+}
+@media (max-width: 768px) {
+  /* Single column: text goes full width and the cube hides itself. */
+  .hero { grid-template-columns: 1fr; gap: 0; }
+}
 .hero h1 { font-size: clamp(2.2rem, 5vw, 3.1rem); margin: 0 0 var(--s3); }
 .hero p { font-size: 1.15rem; color: var(--muted); max-width: var(--measure); }
 .links { display: flex; gap: var(--s3); flex-wrap: wrap; margin-top: var(--s5); }
@@ -176,6 +186,39 @@ main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
   text-transform: uppercase; font-weight: 600; margin: 0 0 var(--s3);
 }
 .hero-lead { margin: 0 0 var(--s2); }
+
+/* The arrow that steps the cube + intro forward (revealed by JS only). */
+.cube-advance {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  margin: var(--s4) 0 0; padding: .5rem 1rem;
+  font: inherit; font-weight: 600; font-size: .95rem;
+  color: var(--accent); background: transparent;
+  border: 1px solid var(--accent); border-radius: 999px; cursor: pointer;
+  transition: background-color .2s, color .2s, box-shadow .2s;
+}
+/* The class selector above would otherwise beat the `hidden` attribute's
+   display:none — keep it hidden until JS reveals it (and with no JS at all). */
+.cube-advance[hidden] { display: none; }
+.cube-advance:hover { background: var(--accent); color: #fff; }
+.cube-advance:disabled { opacity: .45; cursor: default; }
+.cube-advance svg { width: 1.05em; height: 1.05em; transition: transform .2s; }
+.cube-advance:hover:not(:disabled) svg { transform: translateX(3px); }
+/* Gentle nudge to invite the first click while the box is closed. */
+.cube-advance.is-inviting { animation: cube-invite 2.4s ease-in-out infinite; }
+@keyframes cube-invite {
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 42%, transparent); }
+  70%  { box-shadow: 0 0 0 9px color-mix(in oklab, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cube-advance.is-inviting { animation: none; }
+}
+/* Cube-narrated lead: crossfade between lines without shifting the buttons. */
+.hero-lead.is-narrating { min-height: 3.4em; transition: opacity .22s ease, transform .22s ease; }
+.hero-lead.is-fading { opacity: 0; transform: translateY(4px); }
+@media (prefers-reduced-motion: reduce) {
+  .hero-lead.is-narrating { transition: none; }
+}
 
 /* ── Post page: left sticky ToC + centered content + hero cover ───────────── */
 .post-layout {
