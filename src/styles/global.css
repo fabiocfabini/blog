@@ -181,6 +181,28 @@ main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
 .button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .button.primary:hover { color: #fff; filter: brightness(1.05); }
 
+.links-cue { margin: var(--s5) 0 0; font-weight: 600; color: var(--ink); }
+.links-reveal .links { margin-top: var(--s2); }
+/* Hero links are the payoff at the end of the cube solve — the same pre-paint,
+   motion-gated reveal idiom as .reveal (.reveal-on is set before paint, so no
+   flash), but gated to the widths where the cube actually drives the page (it
+   hides ≤768px) and triggered by the solve finishing (.hero.links-ready) rather
+   than on scroll. Outside those conditions the rule never matches, so the links
+   just show — the no-JS / reduced-motion / mobile fallback. */
+@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
+  .reveal-on .links-reveal {
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity .45s ease, transform .45s ease;
+  }
+  .reveal-on .hero.links-ready .links-reveal {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
 .hero .eyebrow {
   color: var(--accent); font-size: .8rem; letter-spacing: .12em;
   text-transform: uppercase; font-weight: 600; margin: 0 0 var(--s3);

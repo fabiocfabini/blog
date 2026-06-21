@@ -97,17 +97,39 @@ export const FACES: Record<Face, { axis: number; layer: number; sign: number }> 
 
 export type Move = { face: Face; amount: 1 | -1 | 2 };
 
-// Parse standard notation: "U R' F2 M2 E2 S2" -> Move[].
+// A wide turn (e.g. "Fw") turns a face together with the middle slice beside it.
+// Each face maps to that slice plus whether the slice turns with the face (+1)
+// or against it (-1) — a consequence of how M/E/S are defined to follow L/D/F.
+const WIDE: Record<string, { slice: Face; dir: 1 | -1 }> = {
+  R: { slice: 'M', dir: -1 },
+  L: { slice: 'M', dir: 1 },
+  U: { slice: 'E', dir: -1 },
+  D: { slice: 'E', dir: 1 },
+  F: { slice: 'S', dir: 1 },
+  B: { slice: 'S', dir: -1 },
+};
+
+// Parse standard notation: "U R' F2 M2 E2 S2 Fw Rw'" -> Move[]. A wide move
+// expands into the face turn followed by its slice turn.
 export function parseMoves(notation: string): Move[] {
   const tokens = notation.trim().split(/\s+/).filter(Boolean);
-  return tokens.map((tok) => {
+  const moves: Move[] = [];
+  for (const tok of tokens) {
     const face = tok[0] as Face;
     if (!(face in FACES)) throw new Error(`Unknown move: "${tok}"`);
-    const mod = tok.slice(1);
+    let mod = tok.slice(1);
+    const wide = mod[0] === 'w';
+    if (wide) mod = mod.slice(1);
     const amount: Move['amount'] = mod === "'" ? -1 : mod === '2' ? 2 : 1;
     if (mod && mod !== "'" && mod !== '2') throw new Error(`Bad modifier: "${tok}"`);
-    return { face, amount };
-  });
+    moves.push({ face, amount });
+    if (wide) {
+      const w = WIDE[face];
+      if (!w) throw new Error(`Cannot widen: "${tok}"`);
+      moves.push({ face: w.slice, amount: amount === 2 ? 2 : ((amount * w.dir) as Move['amount']) });
+    }
+  }
+  return moves;
 }
 
 // Reverse a sequence so the cube returns to where it started: play it backwards

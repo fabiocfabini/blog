@@ -6,12 +6,19 @@ import { href } from '../lib/url';
 // The intro copy lives in the inline script below — the lead line is the only one
 // the cube narrates (keys map to it).
 const CV_URL = href('cv');
-const SOCIALS = [
-  { label: 'GitHub', url: 'https://github.com/fabiocfabini' },
-];
+const BLOG_URL = href('blog');
 ---
 
 <BaseLayout title="Fábio Carneiro" variant="home">
+  {/* Enable the reveal animations before paint, only when motion is allowed, so
+      the end-of-solve links start hidden without a flash (and stay visible with
+      JS off or reduced motion). Same flag the CV page uses. */}
+  <script is:inline>
+    if (window.matchMedia && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('reveal-on');
+    }
+  </script>
+
   <section class="hero">
     <div class="hero-text">
       <p class="eyebrow">Personal blog</p>
@@ -36,9 +43,16 @@ const SOCIALS = [
           <path d="m13 6 6 6-6 6" />
         </svg>
       </button>
-      <div class="links">
-        <a class="button" href={CV_URL}>My CV</a>
-        {SOCIALS.map((s) => <a class="button" href={s.url}>{s.label}</a>)}
+      <!-- The payoff: hidden while the cube is being solved, popped in once it
+           lands on a solved cube. CSS gates these on .reveal-on + viewport; the
+           inline script below flips .hero.links-ready when the solve ends. With
+           no JS / reduced motion / mobile, they simply show as normal. -->
+      <div class="links-reveal">
+        <p class="links-cue">Want to see more?</p>
+        <div class="links">
+          <a class="button" href={BLOG_URL}>Read the blog</a>
+          <a class="button" href={CV_URL}>My CV</a>
+        </div>
       </div>
     </div>
     <RubiksCube />
@@ -51,6 +65,7 @@ const SOCIALS = [
     (function () {
       var lead = document.querySelector('.hero-lead');
       var btn = document.querySelector('.cube-advance');
+      var hero = document.querySelector('.hero');
       var reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
       // The cube and the intro talk over events:
@@ -63,9 +78,10 @@ const SOCIALS = [
       var COPY = {
         closed: "I'm allergic to black boxes.",
         open: 'So I take them apart to see how they work.',
-        code: "I write deep-dives into the tech I'm learning.",
-        sport: 'Then I go chase some outdoor adventures.',
-        oss: "And I build in the open — it's all on GitHub.",
+        cross: 'First I find the structure hiding in the mess.',
+        f2l: "Then I dig in — deep-dives into the tech I'm learning.",
+        oll: 'I come up for air chasing outdoor adventures.',
+        pll: 'Then I build it back in the open — all on GitHub.',
       };
       var label = function (key) { return key === 'closed' ? 'Take it apart' : 'Next'; };
 
@@ -81,6 +97,7 @@ const SOCIALS = [
       function showLine(key, animate) {
         var text = COPY[key];
         if (!text) return;
+        if (hero) hero.classList.toggle('links-ready', key === 'pll'); // reveal links once solved
         if (btn) {
           btn.hidden = false;
           btn.setAttribute('aria-label', key === 'closed' ? 'Take the box apart' : 'Next');
@@ -109,6 +126,7 @@ const SOCIALS = [
         lead.classList.remove('is-narrating');
         lead.textContent = full;
         if (btn) btn.hidden = true;
+        if (hero) hero.classList.remove('links-ready'); // back to the resting state
       }
 
       if (btn) btn.addEventListener('click', function () {

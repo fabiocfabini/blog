@@ -57,4 +57,36 @@ describe('cube engine', () => {
     expect(() => parseMoves('R X')).toThrow();
     expect(() => parseMoves("R3")).toThrow();
   });
+
+  it('expands wide turns into the face plus its adjacent slice', () => {
+    expect(parseMoves('Fw')).toEqual([
+      { face: 'F', amount: 1 },
+      { face: 'S', amount: 1 },
+    ]);
+    expect(parseMoves("Fw'")).toEqual([
+      { face: 'F', amount: -1 },
+      { face: 'S', amount: -1 },
+    ]);
+    // Slice turns against the face when M/E/S is defined to follow the far side.
+    expect(parseMoves('Rw')).toEqual([
+      { face: 'R', amount: 1 },
+      { face: 'M', amount: -1 },
+    ]);
+    expect(parseMoves('Uw2')).toEqual([
+      { face: 'U', amount: 2 },
+      { face: 'E', amount: 2 },
+    ]);
+    expect(() => parseMoves('Mw')).toThrow(); // a slice has nothing to widen
+  });
+
+  it('every wide turn scrambles the cube and reverses cleanly', () => {
+    for (const tok of ['Fw', 'Bw', 'Uw', 'Dw', 'Rw', 'Lw']) {
+      const cube = makeSolved();
+      const moves = parseMoves(tok);
+      applyMoves(cube, moves);
+      expect(isSolved(cube), `${tok} should scramble the cube`).toBe(false);
+      applyMoves(cube, invert(moves));
+      expect(cube, `${tok} should reverse cleanly`).toEqual(makeSolved());
+    }
+  });
 });

@@ -16,7 +16,7 @@
 // static intro), and pauses when the tab is hidden or scrolled away.
 ---
 
-<div class="rk-scene" data-rubiks aria-hidden="true">
+<div class="rk-scene is-closed" data-rubiks aria-hidden="true">
   <div class="rk-cube"></div>
 </div>
 
@@ -97,6 +97,12 @@
   .rk-scene.is-closed .rk-sticker {
     background: var(--rk-plastic);
   }
+  /* Reduced motion gets the static colourful cube at load; snap, don't fade. */
+  @media (prefers-reduced-motion: reduce) {
+    .rk-sticker {
+      transition: none;
+    }
+  }
 
   /* No room for it next to the text on small screens — drop it entirely. */
   @media (max-width: 768px) {
@@ -105,7 +111,7 @@
 </style>
 
 <script>
-  import { makeSolved, applyMove, parseMoves, invert, PATTERNS, AXIS_VEC, FACES } from '../lib/cube/engine';
+  import { makeSolved, applyMove, applyMoves, parseMoves, AXIS_VEC, FACES } from '../lib/cube/engine';
   import type { Cubie, Move, Mat, Vec } from '../lib/cube/engine';
 
   const scene = document.querySelector<HTMLElement>('[data-rubiks]');
@@ -127,15 +133,19 @@
     const reduce = matchMedia('(prefers-reduced-motion: reduce)');
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-    // Scenes in click order. Facet scenes carry a short pattern to display; the
-    // key tells the page which line of the intro to show.
-    const pat = (name: string) => PATTERNS.find((p) => p.name === name)!.notation;
+    // The cube hides a scrambled state (green front, white up). Each click plays
+    // one stage of a CFOP solve on top of the last, so the box visibly unscrambles
+    // itself: reveal it, then cross, F2L, OLL, PLL. parseMoves expands the OLL's
+    // wide turns (Fw) for us.
+    const SCRAMBLE = "B2 D' B2 U2 L2 U' L2 U2 L2 B2 U' R2 F' L' B U2 L2 U R' D R";
+    const scramble = parseMoves(SCRAMBLE);
     const SCENES = [
       { key: 'closed', moves: '' },
-      { key: 'open', moves: '' },
-      { key: 'code', moves: pat('Checkerboard') },
-      { key: 'sport', moves: pat('Six spots') },
-      { key: 'oss', moves: pat('Dots') },
+      { key: 'open', moves: '' }, // reveal the scramble — no turns yet
+      { key: 'cross', moves: "F U F R' D R' B U2" },
+      { key: 'f2l', moves: "B D2 B' D R D R' D2 F' D' F2 D2 F' L D' L2 D' L2 D' L' D' F' D' F" },
+      { key: 'oll', moves: "D' Fw L D L' D' Fw' D2 F L D' L' D' L D L' F'" },
+      { key: 'pll', moves: "D' L B' L F2 L' B L F2 L2" },
     ];
 
     // Each cube face div, by the cubie-local direction it covers.
@@ -171,6 +181,18 @@
       `translate3d(${c.position[0] * S * explode}px,${c.position[1] * S * explode}px,${c.position[2] * S * explode}px) ${m3d(c.orientation)}`;
     function renderAll() {
       for (let i = 0; i < cubies.length; i++) els[i].style.transform = baseTransform(cubies[i]);
+    }
+    // Snap the state back to the scramble (stickers are glued, so a freshly
+    // scrambled cube lines up index-for-index with ours — only the position and
+    // orientation differ). Used to reset for replay; instant, no animation.
+    function resetToScramble() {
+      const fresh = makeSolved();
+      applyMoves(fresh, scramble);
+      for (let i = 0; i < cubies.length; i++) {
+        cubies[i].position = fresh[i].position;
+        cubies[i].orientation = fresh[i].orientation;
+      }
+      renderAll();
     }
 
     // --- whole-cube spin (+ tremor) --------------------------------------
@@ -246,6 +268,7 @@
       | { type: 'tremor'; dur: number }
       | { type: 'explode'; to: number; dur: number }
       | { type: 'moves'; list: Move[] }
+      | { type: 'reset' } // re-scramble instantly while hidden, for replay
       | { type: 'wait'; dur: number };
 
     let acts: Act[] = [];
@@ -267,6 +290,7 @@
         case 'tremor': tremorUntil = now + a.dur; break;
         case 'explode': tweenExplode(a.to, a.dur, now); break;
         case 'moves': queue.push(...a.list); break;
+        case 'reset': resetToScramble(); nextAct(now); break;
         case 'wait': break;
       }
     }
@@ -298,12 +322,12 @@
 
     // --- click choreography ----------------------------------------------
     let sceneIndex = 0; // start closed
-    let currentPattern: Move[] = []; // pattern currently displayed (to undo)
 
     function transitionTo(next: number, now: number) {
       const key = SCENES[next].key;
       if (key === 'open') {
-        // Tremble, then burst into colour and spread apart, then settle.
+        // Tremble, then burst into colour and spread apart, then settle —
+        // revealing the scramble, with no turns yet.
         runActs(
           [
             { type: 'tremor', dur: TREMOR_MS },
@@ -316,27 +340,21 @@
           now,
         );
       } else if (key === 'closed') {
-        // Undo the last pattern, then drain colour back to a black box.
-        const list = invert(currentPattern);
-        currentPattern = [];
+        // Solved cube -> drain colour back to a black box, then silently
+        // re-scramble (hidden) so the next reveal starts the solve over.
         runActs(
           [
-            ...(list.length ? [{ type: 'moves', list } as Act] : []),
             { type: 'emit', key: 'closed' },
             { type: 'class', op: 'add', name: 'is-closed' },
             { type: 'wait', dur: CLOSE_MS },
+            { type: 'reset' },
           ],
           now,
         );
       } else {
-        // A facet: reconfigure from the current pattern into this one.
+        // A solve stage: play its moves on top of the current state.
         const moves = parseMoves(SCENES[next].moves);
-        const list = invert(currentPattern).concat(moves);
-        currentPattern = moves;
-        runActs(
-          [{ type: 'emit', key }, ...(list.length ? [{ type: 'moves', list } as Act] : [])],
-          now,
-        );
+        runActs([{ type: 'emit', key }, { type: 'moves', list: moves }], now);
       }
       sceneIndex = next;
     }
@@ -427,9 +445,12 @@
     // Initial paint.
     sizeToContainer();
     if (reduce.matches) {
-      staticPose();
+      staticPose(); // calm, solved, colourful — no scramble to puzzle over
     } else {
-      scene.classList.add('is-closed'); // start life as a black box
+      // The black box is already on (is-closed is in the markup, so there's no
+      // flash of colour before this runs); just hide the scramble inside it.
+      applyMoves(cubies, scramble);
+      renderAll();
       renderCube();
     }
 
