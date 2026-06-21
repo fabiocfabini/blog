@@ -94,6 +94,11 @@ h1, h2, h3, h4 {
 :root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 
+/* Sound toggle: muted speaker when off, speaker-with-waves when on (shares .theme-toggle) */
+.sound-toggle .icon-sound-on { display: none; }
+:root[data-sound="on"] .sound-toggle .icon-sound-on { display: block; }
+:root[data-sound="on"] .sound-toggle .icon-sound-off { display: none; }
+
 /* Layout */
 main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
 

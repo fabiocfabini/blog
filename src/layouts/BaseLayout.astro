@@ -40,6 +40,20 @@ const SOCIALS = [
         } catch (e) {}
       })();
     </script>
+    <!-- Sound is opt-in: off unless the visitor turned it on before. Set pre-paint so the
+         toggle icon never flips after load. No system-preference fallback (there's none). -->
+    <script is:inline>
+      (function () {
+        try {
+          document.documentElement.setAttribute(
+            'data-sound',
+            localStorage.getItem('sound') === 'on' ? 'on' : 'off',
+          );
+        } catch (e) {
+          document.documentElement.setAttribute('data-sound', 'off');
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href={href('favicon.svg')} />
     <title>{docTitle}</title>
     <meta name="description" content={description} />
@@ -58,6 +72,12 @@ const SOCIALS = [
           <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme">
             <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+          <!-- Opt-in sound: when on, the home-hero cube clacks on each turn over a lofi loop.
+               Mirrors the theme toggle (data-sound on <html> + 'sound' in localStorage). -->
+          <button id="sound-toggle" class="theme-toggle sound-toggle" type="button" aria-label="Turn sound on" aria-pressed="false">
+            <svg class="icon-sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+            <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           </button>
         </nav>
       </div>
@@ -86,6 +106,24 @@ const SOCIALS = [
         root.setAttribute('data-theme', next);
         try { localStorage.setItem('theme', next); } catch (e) {}
       });
+
+      // Sound toggle: flip data-sound, persist, and broadcast so the cube can react
+      // (and so the toggle click itself is the user gesture that unlocks audio).
+      const sbtn = document.getElementById('sound-toggle');
+      if (sbtn) {
+        const syncSound = (on) => {
+          sbtn.setAttribute('aria-pressed', String(on));
+          sbtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+        };
+        syncSound(document.documentElement.getAttribute('data-sound') === 'on');
+        sbtn.addEventListener('click', () => {
+          const on = document.documentElement.getAttribute('data-sound') !== 'on';
+          document.documentElement.setAttribute('data-sound', on ? 'on' : 'off');
+          syncSound(on);
+          try { localStorage.setItem('sound', on ? 'on' : 'off'); } catch (e) {}
+          document.dispatchEvent(new CustomEvent('sound:changed', { detail: { on } }));
+        });
+      }
     </script>
   </body>
 </html>

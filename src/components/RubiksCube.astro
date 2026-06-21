@@ -113,6 +113,7 @@
 <script>
   import { makeSolved, applyMove, applyMoves, parseMoves, AXIS_VEC, FACES } from '../lib/cube/engine';
   import type { Cubie, Move, Mat, Vec } from '../lib/cube/engine';
+  import { href } from '../lib/url';
 
   const scene = document.querySelector<HTMLElement>('[data-rubiks]');
   const cubeEl = scene?.querySelector<HTMLElement>('.rk-cube');
@@ -221,6 +222,7 @@
     let queue: Move[] = [];
 
     function startMove(move: Move, now: number) {
+      audio.playClack(move.amount === 2); // a clack per layer turn, when sound is on
       const f = FACES[move.face];
       const moving: number[] = [];
       for (let i = 0; i < cubies.length; i++) if (cubies[i].position[f.axis] === f.layer) moving.push(i);
@@ -257,6 +259,113 @@
     const emitBusy = (busy: boolean) =>
       document.dispatchEvent(new CustomEvent('cube:busy', { detail: { busy } }));
 
+    // --- audio: opt-in cube clacks + ambient lofi (assets in public/sounds; CREDITS.md) --
+    // Gated on <html data-sound="on"> (set by the nav toggle). Lazy — nothing is fetched
+    // until sound is first enabled, so the default visit pays nothing. Browser autoplay
+    // needs a user gesture: the toggle click is one; a returning visitor (already on) is
+    // unlocked on their first interaction. Fails silent if audio is blocked/unsupported.
+    const audio = (() => {
+      const soundOn = () => document.documentElement.getAttribute('data-sound') === 'on';
+      let ctx: AudioContext | null = null;
+      let master: GainNode | null = null;
+      let clackBuf: AudioBuffer | null = null;
+      let noiseBuf: AudioBuffer | null = null;
+      let music: HTMLAudioElement | null = null;
+      let started = false;
+
+      function ensure() {
+        if (started) return;
+        started = true;
+        try {
+          const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+          ctx = new Ctor();
+          master = ctx.createGain();
+          master.gain.value = 0.5; // clack bus (sample is already normalized)
+          master.connect(ctx.destination);
+          // One second of white noise, reused to synth the tremor rumble (no asset).
+          noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+          const nd = noiseBuf.getChannelData(0);
+          for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+          music = new Audio(href('sounds/lofi-loop.mp3'));
+          music.loop = true;
+          music.volume = 0.22; // low, ambient — sits under the clacks
+          music.preload = 'auto';
+          fetch(href('sounds/cube-turn.wav'))
+            .then((r) => r.arrayBuffer())
+            .then((b) => ctx!.decodeAudioData(b))
+            .then((buf) => { clackBuf = buf; })
+            .catch(() => {});
+        } catch (e) {
+          /* no audio — the cube still works silently */
+        }
+      }
+
+      function enable() {
+        ensure();
+        ctx?.resume().catch(() => {});
+        if (music && soundOn() && !document.hidden) music.play().catch(() => {});
+      }
+
+      function playClack(slow: boolean) {
+        if (!soundOn() || !ctx || !clackBuf || !master) return;
+        const src = ctx.createBufferSource();
+        src.buffer = clackBuf;
+        // Pitch jitter so a 20-move solve doesn't machine-gun; half-turns sit a touch lower.
+        src.playbackRate.value = (slow ? 0.86 : 1) * (0.94 + Math.random() * 0.12);
+        const g = ctx.createGain();
+        g.gain.value = 0.8 + Math.random() * 0.4;
+        src.connect(g).connect(master);
+        src.start();
+      }
+
+      // A low, pulsating rumble that fades over the shudder — synthesized to match the
+      // visual tremor (low-passed noise + ~12 Hz tremolo, damped to nothing over `durMs`).
+      function playTremor(durMs: number) {
+        if (!soundOn() || !ctx || !master || !noiseBuf) return;
+        const t0 = ctx.currentTime;
+        const dur = Math.max(0.1, durMs / 1000);
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuf;
+        noise.loop = true;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 360; // a body rumble, not hiss
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0, t0);
+        env.gain.linearRampToValueAtTime(0.42, t0 + 0.025); // quick attack
+        env.gain.linearRampToValueAtTime(0.0001, t0 + dur); // damp out with the shake
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 12; // the "shaking" pulse, ~the visual shudder rate
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.28;
+        lfo.connect(lfoGain).connect(env.gain); // tremolo on top of the envelope
+        noise.connect(lp).connect(env).connect(master);
+        noise.start(t0);
+        lfo.start(t0);
+        noise.stop(t0 + dur + 0.05);
+        lfo.stop(t0 + dur + 0.05);
+      }
+
+      document.addEventListener('sound:changed', (e) => {
+        if ((e as CustomEvent).detail?.on) enable();
+        else music?.pause();
+      });
+      // Already opted in from a past visit — autoplay is blocked until a gesture, so wait
+      // for the first one (a click anywhere, or advancing the cube) and start then.
+      if (soundOn()) {
+        const kick = () => enable();
+        document.addEventListener('pointerdown', kick, { once: true });
+        document.addEventListener('cube:advance', kick, { once: true });
+      }
+      // Don't play to an empty room.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) music?.pause();
+        else if (soundOn()) music?.play().catch(() => {});
+      });
+
+      return { playClack, playTremor };
+    })();
+
     // --- tremor -----------------------------------------------------------
     let tremorUntil = 0;
 
@@ -287,7 +396,7 @@
       switch (a.type) {
         case 'emit': emit(a.key); nextAct(now); break;
         case 'class': scene.classList[a.op](a.name); nextAct(now); break;
-        case 'tremor': tremorUntil = now + a.dur; break;
+        case 'tremor': tremorUntil = now + a.dur; audio.playTremor(a.dur); break;
         case 'explode': tweenExplode(a.to, a.dur, now); break;
         case 'moves': queue.push(...a.list); break;
         case 'reset': resetToScramble(); nextAct(now); break;
