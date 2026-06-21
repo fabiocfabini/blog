@@ -72,6 +72,9 @@ const dateFmt = post.data.date.toLocaleDateString('en-US', {
 </BaseLayout>
 
 <script>
+  // Re-init per navigation (View Transitions reuse this [slug] route for every post, and
+  // bundled scripts run once) — so the observer rebinds to the new post's headings each time.
+  document.addEventListener('astro:page-load', () => {
   // Scroll-spy: highlight the ToC entry whose section is currently in view.
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.toc a'));
   if (links.length) {
@@ -94,4 +97,5 @@ const dateFmt = post.data.date.toLocaleDateString('en-US', {
     );
     headings.forEach((h) => observer.observe(h));
   }
+  });
 </script>

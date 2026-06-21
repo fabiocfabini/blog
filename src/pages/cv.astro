@@ -95,14 +95,6 @@ const description =
 ---
 
 <BaseLayout title="CV" description={description}>
-  {/* Set the reveal flag before the sections below are painted, so animated
-      sections start hidden only when motion is allowed AND JS is on — no flash,
-      and full content with JS off or reduced motion. */}
-  <script is:inline>
-    if (window.matchMedia && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.documentElement.classList.add('reveal-on');
-    }
-  </script>
 
   <header class="cv-intro reveal">
     <p class="cv-eyebrow">Curriculum Vitae</p>
@@ -225,7 +217,9 @@ const description =
   </section>
 
   <script>
-    // One-shot scroll reveal. The `reveal-on` class (set inline above) means the
+    // Re-init on every navigation (View Transitions swap <main>; bundled scripts run once).
+    document.addEventListener('astro:page-load', () => {
+    // One-shot scroll reveal. The global `reveal-on` flag (set in BaseLayout) means the
     // hidden start-state only exists with JS + motion allowed, so this is purely
     // additive: no JS / reduced motion => everything is already visible.
     const items = document.querySelectorAll('.reveal');
@@ -272,5 +266,6 @@ const description =
       track.addEventListener('scroll', update, { passive: true });
       update();
     }
+    });
   </script>
 </BaseLayout>

@@ -98,7 +98,10 @@ const dateFmt = (d: Date) =>
 </BaseLayout>
 
 <script>
-  // Client-side search / tag filter / sort. Degrades to the full list with JS off.
+  // Re-init on every navigation: View Transitions swap this list in/out and bundled module
+  // scripts run only once, so binding must happen on astro:page-load. JS-off degrades fine.
+  document.addEventListener('astro:page-load', () => {
+  // Client-side search / tag filter / sort.
   const list = document.getElementById('post-list');
   if (list) {
     const cards = Array.from(list.querySelectorAll<HTMLElement>('.post-card'));
@@ -146,4 +149,5 @@ const dateFmt = (d: Date) =>
     );
     apply();
   }
+  });
 </script>

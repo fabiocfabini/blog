@@ -3,6 +3,7 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import '@fontsource-variable/source-serif-4/wght-italic.css';
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 import { href } from '../lib/url';
 
 interface Props {
@@ -30,30 +31,30 @@ const SOCIALS = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Set the theme before first paint to avoid a flash of the wrong theme. -->
+    <!-- JS-driven <html> state (theme, opt-in sound, motion-gated reveal flag). Applied
+         pre-paint AND re-applied on every view-transition swap — Astro replaces <html>
+         attributes during a swap, which would otherwise flash the wrong theme / reset state. -->
     <script is:inline>
       (function () {
-        try {
-          var saved = localStorage.getItem('theme');
-          var theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-          document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {}
-      })();
-    </script>
-    <!-- Sound is opt-in: off unless the visitor turned it on before. Set pre-paint so the
-         toggle icon never flips after load. No system-preference fallback (there's none). -->
-    <script is:inline>
-      (function () {
-        try {
-          document.documentElement.setAttribute(
-            'data-sound',
-            localStorage.getItem('sound') === 'on' ? 'on' : 'off',
-          );
-        } catch (e) {
-          document.documentElement.setAttribute('data-sound', 'off');
+        function applyHtmlState() {
+          var el = document.documentElement;
+          try {
+            var theme = localStorage.getItem('theme') ||
+              (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            el.setAttribute('data-theme', theme);
+            el.setAttribute('data-sound', localStorage.getItem('sound') === 'on' ? 'on' : 'off');
+          } catch (e) {
+            el.setAttribute('data-sound', 'off');
+          }
+          if (window.matchMedia && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            el.classList.add('reveal-on');
+          }
         }
+        applyHtmlState();
+        document.addEventListener('astro:after-swap', applyHtmlState);
       })();
     </script>
+    <ClientRouter />
     <link rel="icon" type="image/svg+xml" href={href('favicon.svg')} />
     <title>{docTitle}</title>
     <meta name="description" content={description} />
@@ -62,7 +63,10 @@ const SOCIALS = [
     <meta property="og:type" content="website" />
   </head>
   <body class={variant === 'home' ? 'is-home' : undefined}>
-    <header class="site-header">
+    {/* Background music lives in the layout (not the cube) and persists across view-transition
+        swaps so it keeps playing as you navigate. src is set lazily, only once sound is on. */}
+    <audio id="bg-music" loop preload="none" transition:persist="bg-music"></audio>
+    <header class="site-header" transition:persist="site-header">
       <div class="container">
         <a class="site-title" href={href('')}>{SITE_TITLE}</a>
         <nav class="site-nav">
@@ -99,6 +103,8 @@ const SOCIALS = [
     </footer>
 
     <script>
+      import { href } from '../lib/url';
+
       const btn = document.getElementById('theme-toggle');
       btn?.addEventListener('click', () => {
         const root = document.documentElement;
@@ -122,6 +128,34 @@ const SOCIALS = [
           syncSound(on);
           try { localStorage.setItem('sound', on ? 'on' : 'off'); } catch (e) {}
           document.dispatchEvent(new CustomEvent('sound:changed', { detail: { on } }));
+        });
+      }
+
+      // Background music: owns the persisted <audio id="bg-music">. Lazy (src set only when
+      // sound is first enabled), low volume, and — because the element is transition:persist
+      // and these listeners live on `document` — it keeps playing across page navigations.
+      const music = document.getElementById('bg-music') as HTMLAudioElement | null;
+      if (music) {
+        const soundOn = () => document.documentElement.getAttribute('data-sound') === 'on';
+        let loaded = false;
+        const play = () => {
+          if (!soundOn() || document.hidden) return;
+          if (!loaded) {
+            loaded = true;
+            music.src = href('sounds/lofi-loop.mp3');
+            music.volume = 0.22;
+          }
+          music.play().catch(() => {});
+        };
+        document.addEventListener('sound:changed', (e) => {
+          if ((e as CustomEvent).detail?.on) play();
+          else music.pause();
+        });
+        // Returning visitor already opted in — autoplay needs a gesture, so start on the first.
+        if (soundOn()) document.addEventListener('pointerdown', play, { once: true });
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) music.pause();
+          else if (soundOn()) play();
         });
       }
     </script>

@@ -115,9 +115,21 @@
   import type { Cubie, Move, Mat, Vec } from '../lib/cube/engine';
   import { href } from '../lib/url';
 
-  const scene = document.querySelector<HTMLElement>('[data-rubiks]');
-  const cubeEl = scene?.querySelector<HTMLElement>('.rk-cube');
-  if (scene && cubeEl) init(scene, cubeEl);
+  // Under View Transitions the cube must re-init each time we land on home and tear down
+  // when leaving: module scripts run once, so a stale rAF/observer/listener would otherwise
+  // leak or stack a second cube. astro:page-load fires on first load AND every navigation.
+  let teardown: (() => void) | null = null;
+  function boot() {
+    if (teardown) return; // already live on this page
+    const scene = document.querySelector<HTMLElement>('[data-rubiks]');
+    const cubeEl = scene?.querySelector<HTMLElement>('.rk-cube');
+    if (scene && cubeEl) teardown = init(scene, cubeEl);
+  }
+  document.addEventListener('astro:page-load', boot);
+  document.addEventListener('astro:before-swap', () => {
+    teardown?.();
+    teardown = null;
+  });
 
   function init(scene: HTMLElement, cubeEl: HTMLElement) {
     const TILT = -26; // fixed downward tilt for a three-quarter view
@@ -133,6 +145,14 @@
 
     const reduce = matchMedia('(prefers-reduced-motion: reduce)');
     const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+    // Everything registered through on()/cleanups is undone by the teardown returned at the
+    // end, so leaving the page (View Transitions) stops the rAF, observer, and all listeners.
+    const cleanups: Array<() => void> = [];
+    function on(t: EventTarget, type: string, fn: any, opts?: any) {
+      t.addEventListener(type, fn, opts);
+      cleanups.push(() => t.removeEventListener(type, fn, opts));
+    }
 
     // The cube hides a scrambled state (green front, white up). Each click plays
     // one stage of a CFOP solve on top of the last, so the box visibly unscrambles
@@ -259,18 +279,17 @@
     const emitBusy = (busy: boolean) =>
       document.dispatchEvent(new CustomEvent('cube:busy', { detail: { busy } }));
 
-    // --- audio: opt-in cube clacks + ambient lofi (assets in public/sounds; CREDITS.md) --
-    // Gated on <html data-sound="on"> (set by the nav toggle). Lazy — nothing is fetched
-    // until sound is first enabled, so the default visit pays nothing. Browser autoplay
-    // needs a user gesture: the toggle click is one; a returning visitor (already on) is
-    // unlocked on their first interaction. Fails silent if audio is blocked/unsupported.
+    // --- audio: opt-in cube clacks + tremor rumble (clack sample in public/sounds) --------
+    // Gated on <html data-sound="on"> (set by the nav toggle). The ambient lofi music lives
+    // in the layout (so it persists across navigations); this only owns the cube's Web Audio
+    // SFX. Lazy + autoplay-safe: the AudioContext is created/resumed on a user gesture. Fails
+    // silent if audio is blocked/unsupported.
     const audio = (() => {
       const soundOn = () => document.documentElement.getAttribute('data-sound') === 'on';
       let ctx: AudioContext | null = null;
       let master: GainNode | null = null;
       let clackBuf: AudioBuffer | null = null;
       let noiseBuf: AudioBuffer | null = null;
-      let music: HTMLAudioElement | null = null;
       let started = false;
 
       function ensure() {
@@ -286,10 +305,6 @@
           noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
           const nd = noiseBuf.getChannelData(0);
           for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
-          music = new Audio(href('sounds/lofi-loop.mp3'));
-          music.loop = true;
-          music.volume = 0.22; // low, ambient — sits under the clacks
-          music.preload = 'auto';
           fetch(href('sounds/cube-turn.wav'))
             .then((r) => r.arrayBuffer())
             .then((b) => ctx!.decodeAudioData(b))
@@ -300,10 +315,10 @@
         }
       }
 
-      function enable() {
+      // Web Audio starts suspended until a user gesture; wake it so clacks aren't swallowed.
+      function resume() {
         ensure();
         ctx?.resume().catch(() => {});
-        if (music && soundOn() && !document.hidden) music.play().catch(() => {});
       }
 
       function playClack(slow: boolean) {
@@ -346,22 +361,18 @@
         lfo.stop(t0 + dur + 0.05);
       }
 
-      document.addEventListener('sound:changed', (e) => {
-        if ((e as CustomEvent).detail?.on) enable();
-        else music?.pause();
+      // Wake the AudioContext when sound is enabled, and on the first gesture for a visitor
+      // who already had it on (autoplay is blocked until then). Routed through on() so they're
+      // removed on teardown — re-entering home never stacks duplicate cubes / double clacks.
+      on(document, 'sound:changed', (e: Event) => {
+        if ((e as CustomEvent).detail?.on) resume();
       });
-      // Already opted in from a past visit — autoplay is blocked until a gesture, so wait
-      // for the first one (a click anywhere, or advancing the cube) and start then.
       if (soundOn()) {
-        const kick = () => enable();
-        document.addEventListener('pointerdown', kick, { once: true });
-        document.addEventListener('cube:advance', kick, { once: true });
+        const kick = () => resume();
+        on(document, 'pointerdown', kick, { once: true });
+        on(document, 'cube:advance', kick, { once: true });
       }
-      // Don't play to an empty room.
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) music?.pause();
-        else if (soundOn()) music?.play().catch(() => {});
-      });
+      cleanups.push(() => { try { ctx?.close(); } catch (e) {} });
 
       return { playClack, playTremor };
     })();
@@ -472,7 +483,7 @@
       if (busy || !shouldRun()) return;
       transitionTo((sceneIndex + 1) % SCENES.length, performance.now());
     }
-    document.addEventListener('cube:advance', advance);
+    on(document, 'cube:advance', advance);
 
     // --- rAF loop with pause guards --------------------------------------
     let raf = 0;
@@ -563,23 +574,33 @@
       renderCube();
     }
 
-    document.addEventListener('visibilitychange', () => {
+    on(document, 'visibilitychange', () => {
       docVisible = !document.hidden;
       sync();
     });
-    reduce.addEventListener?.('change', () => {
+    on(reduce, 'change', () => {
       if (reduce.matches) staticPose();
       sync();
     });
-    new IntersectionObserver(
+    const io = new IntersectionObserver(
       (entries) => {
         onScreen = entries[0].isIntersecting;
         sync();
       },
       { threshold: 0 },
-    ).observe(scene);
-    window.addEventListener('resize', sizeToContainer);
+    );
+    io.observe(scene);
+    cleanups.push(() => io.disconnect());
+    on(window, 'resize', sizeToContainer);
 
     sync();
+
+    // Teardown (run on astro:before-swap): stop the loop and remove every listener/observer
+    // so navigating away leaves nothing running and a return boots exactly one fresh cube.
+    return () => {
+      for (const fn of cleanups) fn();
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
   }
 </script>

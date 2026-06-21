@@ -10,14 +10,6 @@ const BLOG_URL = href('blog');
 ---
 
 <BaseLayout title="Fábio Carneiro" variant="home">
-  {/* Enable the reveal animations before paint, only when motion is allowed, so
-      the end-of-solve links start hidden without a flash (and stay visible with
-      JS off or reduced motion). Same flag the CV page uses. */}
-  <script is:inline>
-    if (window.matchMedia && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.documentElement.classList.add('reveal-on');
-    }
-  </script>
 
   <section class="hero">
     <div class="hero-text">
@@ -58,16 +50,12 @@ const BLOG_URL = href('blog');
     <RubiksCube />
   </section>
 
-  {/* Runs synchronously, before first paint, so the lead is already collapsed to
-      the first narrated line when the page renders — no flash, no layout shift.
+  {/* Narrates the cube's solve into the intro copy. Runs synchronously pre-paint (so the
+      lead is already collapsed to the first line — no flash) and, because this page can be
+      navigated back to under View Transitions, re-runs pre-paint on every astro:after-swap.
       Kept is:inline (not a bundled module) precisely so it isn't deferred. */}
   <script is:inline>
     (function () {
-      var lead = document.querySelector('.hero-lead');
-      var btn = document.querySelector('.cube-advance');
-      var hero = document.querySelector('.hero');
-      var reduce = matchMedia('(prefers-reduced-motion: reduce)');
-
       // The cube and the intro talk over events:
       //   cube -> page : `cube:narrate` {key}  — which line to show
       //                  `cube:busy`    {busy} — lock the button mid-animation
@@ -84,10 +72,10 @@ const BLOG_URL = href('blog');
         pll: 'Then I build it back in the open — all on GitHub.',
       };
       var label = function (key) { return key === 'closed' ? 'Take it apart' : 'Next'; };
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
-      if (!lead || reduce.matches) return;
-      var full = lead.textContent || '';
-      var narrating = false;
+      // Current-page refs + state, refreshed by setup() on each home visit.
+      var lead, btn, hero, full, narrating, active;
 
       function cubeVisible() {
         var scene = document.querySelector('.rk-scene');
@@ -129,22 +117,37 @@ const BLOG_URL = href('blog');
         if (hero) hero.classList.remove('links-ready'); // back to the resting state
       }
 
-      if (btn) btn.addEventListener('click', function () {
+      function onAdvance() {
         document.dispatchEvent(new CustomEvent('cube:advance'));
-      });
+      }
+
+      // Re-grab the (swapped-in) elements and reset state for the current home visit. The
+      // button is a fresh element each visit, so its old listener is GC'd with the old one.
+      function setup() {
+        lead = document.querySelector('.hero-lead');
+        btn = document.querySelector('.cube-advance');
+        hero = document.querySelector('.hero');
+        active = !!lead && !reduce.matches;
+        if (!active) return;
+        full = lead.textContent || '';
+        narrating = false;
+        if (btn) btn.addEventListener('click', onAdvance);
+        if (cubeVisible()) showLine('closed', false); // collapse to the first line pre-paint
+      }
+
+      // Document listeners persist across swaps, so register them once and act on whatever
+      // setup() last wired up (`active` is false off the home page / under reduced motion).
       document.addEventListener('cube:busy', function (e) {
-        if (btn) btn.disabled = e.detail.busy;
+        if (active && btn) btn.disabled = e.detail.busy;
       });
       document.addEventListener('cube:narrate', function (e) {
-        // No cube (e.g. mobile) — keep / restore the full static intro, no button.
+        if (!active) return;
         if (!cubeVisible()) return restoreFull();
         showLine(e.detail.key, true);
       });
 
-      // Set the initial line now (pre-paint). The cube always starts 'closed' and
-      // can't be advanced until we reveal the button, so this is always correct
-      // and can't be missed if the cube's module loads/emits before us.
-      if (cubeVisible()) showLine('closed', false);
+      setup(); // initial load
+      document.addEventListener('astro:after-swap', setup); // re-init pre-paint on each nav
     })();
   </script>
 </BaseLayout>
