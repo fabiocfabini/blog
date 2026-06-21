@@ -232,17 +232,3 @@ export function isSolved(cubies: Cubie[]): boolean {
   }
   return true;
 }
-
-// --- Pattern library (just canned move strings) ----------------------------
-
-export interface Pattern {
-  name: string;
-  notation: string;
-}
-
-export const PATTERNS: Pattern[] = [
-  { name: 'Dots', notation: 'M2 E2 S2' },
-  { name: 'Checkerboard', notation: 'R2 L2 U2 D2 F2 B2' },
-  { name: 'Six spots', notation: "U D' R L' F B' U D'" },
-  { name: 'Cube in a cube', notation: "F L F U' R U F2 L2 U' L' B D' B' L2 U" },
-];

@@ -5,7 +5,6 @@ import {
   parseMoves,
   invert,
   isSolved,
-  PATTERNS,
 } from './engine';
 
 describe('cube engine', () => {
@@ -30,17 +29,6 @@ describe('cube engine', () => {
     const cube = makeSolved();
     applyMoves(cube, parseMoves('U U U U'));
     expect(cube).toEqual(makeSolved());
-  });
-
-  it('every pattern is non-trivial and exactly reversible', () => {
-    for (const { name, notation } of PATTERNS) {
-      const cube = makeSolved();
-      const moves = parseMoves(notation);
-      applyMoves(cube, moves);
-      expect(isSolved(cube), `${name} should scramble the cube`).toBe(false);
-      applyMoves(cube, invert(moves));
-      expect(cube, `${name} should reverse cleanly`).toEqual(makeSolved());
-    }
   });
 
   it('the all-180 patterns are their own inverse', () => {
