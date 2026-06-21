@@ -81,6 +81,32 @@ h1, h2, h3, h4 {
 .site-nav a { color: var(--muted); font-weight: 500; }
 .site-nav a:hover { color: var(--ink); text-decoration: none; }
 
+/* Nav dropdown ("Explore" → Blog / CV) */
+.nav-menu { position: relative; display: flex; }
+.nav-menu-trigger {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; line-height: 1; color: var(--muted); font-weight: 500;
+}
+.nav-menu-trigger:hover,
+.nav-menu-trigger[aria-expanded="true"] { color: var(--ink); }
+.nav-menu-chevron { width: 15px; height: 15px; transition: transform .18s ease; }
+.nav-menu-trigger[aria-expanded="true"] .nav-menu-chevron { transform: rotate(180deg); }
+.nav-menu-dropdown {
+  position: absolute; top: calc(100% + var(--s3)); right: 0; z-index: 50;
+  display: flex; flex-direction: column; min-width: 9rem;
+  padding: var(--s2); gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(33, 28, 22, .12);
+}
+.nav-menu-dropdown[hidden] { display: none; }
+.nav-menu-dropdown a {
+  padding: var(--s2) var(--s3); border-radius: 6px;
+  color: var(--muted); font-weight: 500; white-space: nowrap;
+}
+.nav-menu-dropdown a:hover { color: var(--ink); background: var(--bg); text-decoration: none; }
+
 /* Theme toggle: show moon in light (→ go dark), sun in dark (→ go light) */
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center;
@@ -98,6 +124,26 @@ h1, h2, h3, h4 {
 .sound-toggle .icon-sound-on { display: none; }
 :root[data-sound="on"] .sound-toggle .icon-sound-on { display: block; }
 :root[data-sound="on"] .sound-toggle .icon-sound-off { display: none; }
+
+/* Theme + sound toggles grouped into one pill. The buttons keep .theme-toggle (so
+   icon-swaps + JS still work), but inside the group they go borderless and share the
+   pill's border, with a hairline divider between them. */
+.toggle-group {
+  display: inline-flex; align-items: center; overflow: hidden;
+  border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface);
+}
+.toggle-group .theme-toggle {
+  width: 36px; height: 36px; border: 0; border-radius: 0; background: none;
+}
+.toggle-group .theme-toggle + .theme-toggle { border-left: 1px solid var(--hairline); }
+.toggle-group .theme-toggle:hover { color: var(--accent); background: var(--bg); }
+
+/* Mobile: drop the name so the nav gets full width (kept on desktop). With the title
+   gone there's only one flex child, so right-align it to keep the nav on the right. */
+@media (max-width: 640px) {
+  .site-title { display: none; }
+  .site-header .container { justify-content: flex-end; }
+}
 
 /* Layout */
 main { flex: 1 0 auto; padding: var(--s7) 0 var(--s8); }
