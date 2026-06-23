@@ -9,48 +9,59 @@ const EXPERIENCE = [
   {
     role: 'Software Engineer',
     org: 'CERN — CMS BRIL Group',
-    when: 'Apr 2025 – Present',
+    when: 'Apr 2025 ~ Present',
     where: 'Geneva, Switzerland',
     flag: '🇨🇭',
     points: [
-      'Built C++17 real-time data-acquisition applications driving FPGA readout hardware through a finite-state machine exposed over REST, with a Python GUI and command-line client to operate it — deployed and run on hardware during the BRIL testbeam campaign.',
-      'Built a FastAPI + Pydantic microservice distributing validated Avro message schemas across all BRIL online services, with strict type checking and a request-introspection facility for end-to-end test traceability.',
-      'Created a container-based (docker-compose) integration-test framework validating end-to-end MQTT messaging and binary-codec correctness across the C++ and Python components.',
-      'Owned CI/CD and containerisation: multi-stage, multi-architecture (x86-64 / arm64) image builds in GitLab CI, and infrastructure-as-code provisioning a Kubernetes cluster on CERN’s OpenStack cloud with Terraform + Ansible.',
-      'Led integration discussions across CMS subsystems, negotiated DAQ interfaces with the central DAQ team, and contributed an accepted upstream fix to Apache Avro.',
+    //   'Built C++17 real-time data-acquisition applications driving FPGA readout hardware through a finite-state machine exposed over REST, with a Python GUI and command-line client to operate it — deployed and run on hardware during the BRIL testbeam campaign.',
+    //   'Built a FastAPI + Pydantic microservice distributing validated Avro message schemas across all BRIL online services, with strict type checking and a request-introspection facility for end-to-end test traceability.',
+    //   'Created a container-based (docker-compose) integration-test framework validating end-to-end MQTT messaging and binary-codec correctness across the C++ and Python components.',
+    //   'Owned CI/CD and containerisation: multi-stage, multi-architecture (x86-64 / arm64) image builds in GitLab CI, and infrastructure-as-code provisioning a Kubernetes cluster on CERN’s OpenStack cloud with Terraform + Ansible.',
+    //   'Led integration discussions across CMS subsystems, negotiated DAQ interfaces with the central DAQ team, and contributed an accepted upstream fix to Apache Avro.',
     ],
   },
   {
     role: 'Data-Analysis Software Developer',
     org: 'CERN — CMS BRIL Group',
-    when: 'Oct 2024 – Mar 2025',
+    when: 'Nov 2024 ~ Mar 2025',
     where: 'Geneva, Switzerland',
     flag: '🇨🇭',
     points: [
-      'Designed and built a modular, configuration-driven analysis-pipeline framework in Python (typed, auto-registering components; declarative YAML pipelines; a column-oriented data model) that standardised and replaced the team’s ad-hoc analysis scripts, with a full quality toolchain (pytest, static typing, linting, pre-commit, CI).',
-      'Ran a systematic study of the team’s long-standing IO bottleneck, showing a columnar layout delivers ~2 orders of magnitude higher read throughput and 2–4× compression, and produced a clear, cost-aware recommendation for the Phase-2 data pipeline.',
+    //   'Designed and built a modular, configuration-driven analysis-pipeline framework in Python (typed, auto-registering components; declarative YAML pipelines; a column-oriented data model) that standardised and replaced the team’s ad-hoc analysis scripts, with a full quality toolchain (pytest, static typing, linting, pre-commit, CI).',
+    //   'Ran a systematic study of the team’s long-standing IO bottleneck, showing a columnar layout delivers ~2 orders of magnitude higher read throughput and 2~4× compression, and produced a clear, cost-aware recommendation for the Phase-2 data pipeline.',
     ],
   },
   {
     role: 'Technical Intern (Software)',
     org: 'CERN — CMS BRIL Group',
-    when: 'Sep 2023 – Aug 2024',
+    when: 'Sep 2023 ~ Oct 2024',
     where: 'Geneva, Switzerland',
     flag: '🇨🇭',
     points: [
-      'Maintained and extended a critical Python/C++ analysis framework, implementing new features and synchronising development across framework branches.',
-      'Built a vectorised computation layer in C and Cython to speed up the hot paths.',
+    //   'Maintained and extended a critical Python/C++ analysis framework, implementing new features and synchronising development across framework branches.',
+    //   'Built a vectorised computation layer in C and Cython to speed up the hot paths.',
     ],
   },
   {
-    role: 'Research & Internship',
-    org: 'University of Minho',
-    when: '2022 – 2023',
+    role: 'Summer Intern',
+    org: 'INSTRUMENTATION AND EXPERIMENTAL PARTICLE PHYSICS LABORATORY',
+    when: 'Jun 2023 ~ Aug 2023',
     where: 'Braga, Portugal',
     flag: '🇵🇹',
     points: [
-      'Summer intern, Instrumentation & Experimental Particle Physics Lab: ML anomaly detection on CMS simulated collision data (PyTorch / Lightning / TensorFlow, Optuna-tuned variational autoencoders).',
-      'Research student (BI grant): parallelised an HPC codebase for the optical properties of 2D materials (NumPy, Dask, h5py), published as an open-source Python package.',
+    //   'Summer intern, Instrumentation & Experimental Particle Physics Lab: ML anomaly detection on CMS simulated collision data (PyTorch / Lightning / TensorFlow, Optuna-tuned variational autoencoders).',
+    //   'Research student (BI grant): parallelised an HPC codebase for the optical properties of 2D materials (NumPy, Dask, h5py), published as an open-source Python package.',
+    ],
+  },
+  {
+    role: 'Research Student (BI grant)',
+    org: 'University of Minho',
+    when: 'Sep 2022 ~ May 2023',
+    where: 'Braga, Portugal',
+    flag: '🇵🇹',
+    points: [
+    //   'Summer intern, Instrumentation & Experimental Particle Physics Lab: ML anomaly detection on CMS simulated collision data (PyTorch / Lightning / TensorFlow, Optuna-tuned variational autoencoders).',
+    //   'Research student (BI grant): parallelised an HPC codebase for the optical properties of 2D materials (NumPy, Dask, h5py), published as an open-source Python package.',
     ],
   },
 ];
@@ -68,7 +79,7 @@ const PROJECTS = [
   { name: 'Tox', url: 'https://github.com/fabiocfabini/tox', blurb: 'A C-like language built with flex/yacc plus a bytecode virtual machine.', tech: ['Python', 'flex/yacc'] },
   { name: 'SimpleWire', url: 'https://github.com/fabiocfabini/simplewire', blurb: 'A tiny schema compiler for C that generates single-header binary-serialisation libraries — a lightweight Protocol Buffers alternative.', tech: ['C', 'compilers', 'codegen'] },
   { name: 'Anchor', url: 'https://github.com/fabiocfabini/anchor', blurb: 'A minimal (~90-line) container runtime in C that demonstrates containers at the kernel level using Linux namespaces (UTS, PID, mount, network).', tech: ['C', 'Linux'] },
-  { name: 'Microcontroller + GUI', url: 'https://github.com/fabiocfabini/Micro-Breakout.X', blurb: 'A GUI-driven application over an IEEE 1451 STIM–NCAP interface on a PIC18F47Q10 — C firmware with a Python NCAP and GUI.', tech: ['C', 'Python', 'embedded'] },
+  { name: 'Microcontroller + GUI', url: 'https://github.com/fabiocfabini/Micro-Breakout.X', blurb: 'A GUI-driven application over an IEEE 1451 STIM~NCAP interface on a PIC18F47Q10 — C firmware with a Python NCAP and GUI.', tech: ['C', 'Python', 'embedded'] },
 ];
 
 // Publications, newest first. Berry has a public page; the dissertation does not.
@@ -78,7 +89,7 @@ const PUBLICATIONS = [
     kind: 'MSc thesis',
     venue: 'University of Minho',
     title: 'Luminosity calibrations at the CERN Compact Muon Solenoid experiment',
-    note: 'Precise luminosity measurements are essential for determining particle-interaction cross-sections and testing the Standard Model. This thesis calibrates the luminosity of CERN’s CMS experiment for the 2023 proton–proton run at 13.6 TeV, using the van der Meer scan method to set an absolute luminosity scale — measuring an integrated luminosity of 32.74 fb⁻¹ with 1.28% total uncertainty, the best preliminary result achieved by CMS.',
+    note: 'Precise luminosity measurements are essential for determining particle-interaction cross-sections and testing the Standard Model. This thesis calibrates the luminosity of CERN’s CMS experiment for the 2023 proton~proton run at 13.6 TeV, using the van der Meer scan method to set an absolute luminosity scale — measuring an integrated luminosity of 32.74 fb⁻¹ with 1.28% total uncertainty, the best preliminary result achieved by CMS.',
     url: 'https://hdl.handle.net/1822/99188',
   },
   {
@@ -101,14 +112,9 @@ const description =
     <h1>Fábio Carneiro</h1>
     <p class="cv-role">Software Engineer · CERN — CMS BRIL Group</p>
     <p class="cv-lead">
-      I'm a software engineer who likes to understand systems all the way down to
-      the metal. For the past couple of years at CERN I've built software for the
-      CMS experiment's luminosity instrumentation — Python services and
-      data-analysis tools alongside the C++ that talks to the detector hardware —
-      growing most from owning projects end to end. My roots are in physics and
-      scientific computing, but the part of the craft I keep coming back to is the
-      low-level side: performance, memory, and the inner workings of compilers and
-      programming languages.
+      I'm a software engineer who likes to understand systems all the way down to the metal. For the past couple of years at CERN I've been building software for the CMS BRIL group, writing Python services and data-analysis tools alongside the C++ that talks to
+      the detector hardware, and I've grown most from owning projects end to end. My roots are in physics and scientific computing, but the part of the craft I keep coming back to is the low-level side: performance, memory, and the inner workings of compilers and
+      programming languages, which started as a side-project fascination and never really let go. I enjoy taking a messy, ambiguous problem and turning it into something clean, fast and reliable.
     </p>
     <p class="meta cv-locale"><span class="cv-flag">🇵🇹</span> Portuguese · <span class="cv-flag">🇨🇭</span> Based in Geneva, Switzerland · English (C2)</p>
   </header>
